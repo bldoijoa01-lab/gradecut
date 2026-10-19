@@ -363,6 +363,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     else if (t.id === "clearNo") { $("clearAsk").hidden = true; }
     else if (t.id === "clearYes") { scores = {}; saveLocal(); $("clearAsk").hidden = true; $("status").textContent = "내 점수를 모두 지웠어요."; render(); }
   });
+  // 입력하는 즉시 저장 (칸을 벗어나지 않고 새로고침해도 남도록)
+  document.addEventListener("input", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
   document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
   document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList?.contains("myin")) e.target.blur(); });
   document.addEventListener("focusout", e => { if (e.target.classList?.contains("myin")) setTimeout(render, 0); });
