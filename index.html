@@ -194,9 +194,23 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   };
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 
+  // 개인 고정 등급(g)이 '?'(거의 확정)인데 컷으로 등급이 확정되면 컷 계산을 우선
+  function useG(d) {
+    if (!d.g) return false;
+    if (!String(d.g).includes("?")) return true;
+    const m = parse(d.my); const cuts = d.c || [];
+    if (!m) return true;
+    for (let i = 0; i < 4; i++) {
+      const c = parse(cuts[i]);
+      if (!c) return true;
+      if (m.n >= c.n) return c.unsure;
+    }
+    return false;
+  }
+
   function gradeNum(d) {
     const m = parse(d.my); if (!m) return null;
-    if (d.g) { const s = String(d.g); return { n: parseInt(s), u: s.includes("?") }; }
+    if (useG(d)) { const s = String(d.g); return { n: parseInt(s), u: s.includes("?") }; }
     const cuts = d.c || [];
     for (let i = 0; i < 4; i++) {
       const c = parse(cuts[i]);
@@ -232,7 +246,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   function badge(d) {
     const m = parse(d.my);
     if (!m) return `<div class="gb none"><b>—</b><i>점수 입력</i></div>`;
-    if (d.g) {
+    if (useG(d)) {
       const u = String(d.g).includes("?"), n = String(d.g).replace("?", "");
       return `<div class="gb g${esc(n)}${u ? " part" : ""}"><b>${esc(n)}</b><i>${u ? "거의 확정" : "등급"}</i></div>`;
     }
