@@ -129,6 +129,19 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   .cuts{grid-template-columns:repeat(4,1fr)}
   .cell.me{grid-column:1/-1;flex-direction:row;justify-content:center;gap:10px}
 }
+[hidden]{display:none!important}
+.picker{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.picker h2{margin:0;font-size:.95rem}
+.picker h2 small{font-weight:400;color:var(--muted);font-size:.78rem;margin-left:6px}
+.picker .row2{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.picker .mine{font-size:.86rem;min-width:0}
+.picker .mine b{color:var(--omr)}
+.pchip{font:inherit;font-size:.84rem;padding:6px 12px;border-radius:999px;border:1px dashed var(--muted);background:none;color:var(--ink);cursor:pointer}
+.pchip[aria-pressed="true"]{border-style:solid;border-color:var(--omr);background:var(--omr-soft);color:var(--omr);font-weight:700}
+.pchip:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+.pnote{font-size:.76rem;color:var(--muted);margin:0}
+.nocut{grid-column:span 4;display:flex;align-items:center;justify-content:center;padding:10px;border:1px dashed var(--rule);border-radius:6px;color:var(--muted);font-size:.84rem}
+.alias{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:4px}
 @media (prefers-reduced-motion:no-preference){.chip,.icon{transition:background .15s,border-color .15s}}
 </style>
 </head>
@@ -141,6 +154,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   </header>
 
   <div class="chips" id="chips" role="group" aria-label="시험 선택"></div>
+
+  <section class="picker" id="picker" aria-label="내 선택과목"></section>
 
   <section class="summary" id="summary" hidden></section>
 
@@ -160,7 +175,12 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 (() => {
   const $ = id => document.getElementById(id);
   const LKEY = "gradecut-my-scores";
-  let docs = [], current = null, scores = {}, renderWaiting = false;
+  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false;
+  const SKEY = "gradecut-my-electives";
+  const loadSel = () => { try { const v = JSON.parse(localStorage.getItem(SKEY) || "null"); return Array.isArray(v) ? v : null; } catch { return null; } };
+  const saveSel = () => { try { localStorage.setItem(SKEY, JSON.stringify(sel)); } catch {} };
+  const MAXSEL = 5;
+  const nameOf = d => esc(d.subject) + (d.alias ? `<span class="alias">${esc(d.alias)}</span>` : "");
 
   const loadLocal = () => { try { return JSON.parse(localStorage.getItem(LKEY) || "{}"); } catch { return {}; } };
   const saveLocal = () => { try { localStorage.setItem(LKEY, JSON.stringify(scores)); return true; } catch { return false; } };
@@ -201,7 +221,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const c1 = parse((d.c || [])[0]);
       const gap = c1 && !(d.c?.[0] || "").includes("↑") ? (m.n - c1.n) : null;
       const gapTxt = gap === null ? "" : ` · 1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
-      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
+      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
     }).join("");
     const chips = Object.keys(counts).sort().map(k => `<span class="c${k}">${k}등급 ${counts[k]}과목</span>`).join("");
     return `<div class="sum-head"><div class="sum-avg">${wavg
@@ -249,7 +269,17 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     $("chips").innerHTML = list.map(e =>
       `<button class="chip" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}</button>`).join("");
     if (!current) { $("examTitle").textContent = "아직 등급컷이 없어요"; $("rows").innerHTML = ""; return; }
-    const rows = docs.filter(d => d.exam === current).sort((a, b) => a.subject.localeCompare(b.subject, "ko"))
+    const examDocs = docs.filter(d => d.exam === current);
+    const electives = examDocs.filter(d => !d.common).sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
+    const showPick = picking || !sel;
+    const chosen = sel || [];
+    $("picker").innerHTML = showPick
+      ? `<h2>내 선택과목 고르기<small>공통(국어·영어·미적분I)은 자동 포함 · 최대 ${MAXSEL}개</small></h2>
+         <div class="chips">${electives.map(d => `<button class="pchip" type="button" data-pick="${esc(d.subject)}" aria-pressed="${chosen.includes(d.subject)}">${esc(d.subject)}${d.alias ? ` (${esc(d.alias)})` : ""}</button>`).join("")}</div>
+         <div class="row2"><p class="pnote">${chosen.length}개 선택됨 · 고른 과목만 아래 목록과 평균에 들어가요.</p><button class="btn" type="button" id="pickDone">완료</button></div>`
+      : `<div class="row2"><div class="mine">선택과목 <b>${chosen.length}</b> · ${chosen.map(esc).join(" · ") || "없음"}</div><button class="icon" type="button" id="pickEdit">바꾸기</button></div>`;
+    const rows = examDocs.filter(d => d.common || chosen.includes(d.subject))
+      .sort((a, b) => (b.common ? 1 : 0) - (a.common ? 1 : 0) || a.subject.localeCompare(b.subject, "ko"))
       .map(d => ({ ...d, my: scores[d.id]?.my || "", g: scores[d.id]?.g || "" }));
     const sum = summaryHtml(rows);
     $("summary").innerHTML = sum;
@@ -258,7 +288,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     $("count").textContent = rows.length + "과목";
     $("rows").innerHTML = rows.map(d => {
       const cuts = d.c || [];
-      const cells = [0, 1, 2, 3].map(i => {
+      const noCut = !cuts.some(v => String(v || "").trim());
+      const cells = noCut ? `<div class="nocut">아직 등급컷이 없어요</div>` : [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]);
         return `<div class="cell"><i>${i + 1}컷</i>${p ? `<b class="${p.unsure ? "unsure" : ""}">${esc(p.raw)}</b>` : `<b class="none">—</b>`}</div>`;
       }).join("");
@@ -270,7 +301,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       }).join("");
       const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
       return `<div class="row">
-        <div class="subj">${badge(d)}<div class="sname">${esc(d.subject)}<small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
+        <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
         <div class="acts"></div>
         <div class="cuts">${cells}${me}</div>
         <div class="strip" aria-hidden="true"><div class="base"></div>
@@ -292,6 +323,15 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   document.addEventListener("click", e => {
     const t = e.target.closest("button"); if (!t) return;
     if (t.dataset.exam) { current = t.dataset.exam; render(); }
+    else if (t.dataset.pick) {
+      const n = t.dataset.pick; const cur = sel ? [...sel] : [];
+      if (cur.includes(n)) sel = cur.filter(x => x !== n);
+      else if (cur.length >= MAXSEL) { $("status").textContent = `선택과목은 최대 ${MAXSEL}개까지 고를 수 있어요.`; return; }
+      else sel = [...cur, n];
+      picking = true; saveSel(); render();
+    }
+    else if (t.id === "pickDone") { if (!sel) sel = []; picking = false; saveSel(); render(); }
+    else if (t.id === "pickEdit") { picking = true; render(); }
     else if (t.id === "clear") { $("clearAsk").hidden = false; }
     else if (t.id === "clearNo") { $("clearAsk").hidden = true; }
     else if (t.id === "clearYes") { scores = {}; saveLocal(); $("clearAsk").hidden = true; $("status").textContent = "내 점수를 모두 지웠어요."; render(); }
@@ -304,11 +344,13 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   if (location.hash.startsWith("#s=")) {
     try {
       const data = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3)))));
+      if (Array.isArray(data._sel)) { sel = data._sel; saveSel(); delete data._sel; }
       scores = { ...loadLocal(), ...data };
       saveLocal();
       history.replaceState(null, "", location.pathname);
     } catch { scores = loadLocal(); }
   } else scores = loadLocal();
+  if (!sel) sel = loadSel();
 
   fetch("cuts.json", { cache: "no-store" }).then(r => r.json()).then(j => {
     docs = j.subjects || [];
