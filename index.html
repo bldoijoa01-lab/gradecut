@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>등급컷 아카이브</title>
+<meta name="description" content="2학년 과목별 등급컷과 내 예상 등급 계산">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d43d63'/%3E%3Ctext x='16' y='23' font-size='19' font-family='monospace' font-weight='700' text-anchor='middle' fill='white'%3E1%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one column, OMR-sheet feel — exam chips, then a ruled table where each subject gets a 0–100 strip with its cut lines */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2230; --muted:#667085; --rule:#dfe3ea;
+  --omr:#d43d63; --omr-soft:#fbe7ec; --me:#2f6fd6;
+  --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12151b; --surface:#1a1f27; --ink:#e6e9ef; --muted:#9aa3b2; --rule:#2c3340;
+  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151b; --surface:#1a1f27; --ink:#e6e9ef; --muted:#9aa3b2; --rule:#2c3340;
+  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:22px}
+header{display:flex;flex-direction:column;gap:4px}
+h1{margin:0;font-size:1.6rem;font-weight:700;letter-spacing:-.02em;text-wrap:balance}
+h1 span{color:var(--omr)}
+.sub{color:var(--muted);font-size:.88rem;margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:.86rem;padding:6px 12px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:#fff}
+.chip:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+.summary{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.sum-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.sum-avg small{display:block;font-size:.72rem;color:var(--muted);letter-spacing:.05em}
+.sum-avg b{font-family:var(--mono);font-size:2.4rem;line-height:1.05;font-weight:600;color:var(--omr);font-variant-numeric:tabular-nums}
+.sum-avg b span{font-size:.9rem;color:var(--muted);margin-left:4px;font-family:var(--sans);font-weight:500}
+.sum-count{display:flex;gap:6px;flex-wrap:wrap}
+.sum-count span{font-size:.8rem;padding:4px 10px;border-radius:999px;border:1px solid var(--rule)}
+.sum-count span.c1{background:var(--omr);border-color:var(--omr);color:#fff}
+.sum-count span.c2{border-color:var(--omr);color:var(--omr)}
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.tile{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;min-width:0}
+.tile .tg{grid-row:1/3;font-family:var(--mono);font-size:2rem;font-weight:600;line-height:1;width:1.3em;text-align:center;color:var(--muted)}
+.tile .tn{font-weight:700;font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .ts{font-size:.76rem;color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tile.g1{background:var(--omr-soft);border-color:transparent}
+.tile.g1 .tg,.tile.g2 .tg{color:var(--omr)}
+.tile.u .tg::after{content:"?";font-size:.45em;vertical-align:top}
+.sheet{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 16px;border-bottom:2px solid var(--omr)}
+.sheet-head b{font-size:1rem}
+.sheet-head small{color:var(--muted);font-size:.78rem;letter-spacing:.04em}
+.row{display:grid;grid-template-columns:1fr auto;gap:8px 12px;padding:14px 16px;border-bottom:1px solid var(--rule)}
+.row:last-child{border-bottom:0}
+.subj{font-weight:700;font-size:1.05rem;min-width:0;display:flex;align-items:center;gap:14px}
+.sname{display:flex;flex-direction:column;min-width:0}
+.gb{flex:none;width:60px;height:60px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid var(--rule);color:var(--muted);box-sizing:border-box}
+.gb b{font-family:var(--mono);font-size:1.95rem;line-height:1;font-weight:600}
+.gb i{font-style:normal;font-weight:500;font-size:.62rem;letter-spacing:.05em;margin-top:3px}
+.gb.g1{background:var(--omr);border-color:var(--omr);color:#fff}
+.gb.g2{border-color:var(--omr);color:var(--omr)}
+.gb.g3,.gb.g4,.gb.g5{border-color:var(--muted);color:var(--ink)}
+.gb.part{border-style:dashed}
+.gb.g1.part{background:var(--omr-soft);color:var(--omr)}
+.gb.none b{font-size:1.4rem}
+.subj small{font-weight:400;color:var(--muted);font-size:.78rem}
+.acts{display:flex;gap:4px}
+.icon{font:inherit;font-size:.78rem;background:none;border:1px solid transparent;color:var(--muted);padding:2px 8px;border-radius:6px;cursor:pointer}
+.icon:hover{border-color:var(--rule);color:var(--ink)}
+.icon.danger{color:var(--omr)}
+.cuts{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr) 1.2fr;gap:6px}
+.cell{display:flex;flex-direction:column;align-items:center;padding:6px 4px;border:1px solid var(--rule);border-radius:6px;min-width:0}
+.cell i{font-style:normal;font-size:.7rem;color:var(--muted);letter-spacing:.06em}
+.cell b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.05rem;font-weight:600}
+.cell b.unsure{color:var(--muted);font-weight:500}
+.cell b.unsure::after{content:"?";font-size:.75em;margin-left:1px;color:var(--omr)}
+.cell b.none{color:var(--rule)}
+.cell.me{background:var(--omr-soft);border-color:transparent}
+.cell.me b{color:var(--me)}
+.strip{grid-column:1/-1;position:relative;height:22px;margin-top:2px}
+.strip .base{position:absolute;left:0;right:0;top:10px;height:2px;background:var(--rule);border-radius:2px}
+.strip .tick{position:absolute;top:3px;width:2px;height:16px;background:var(--omr);transform:translateX(-1px)}
+.strip .tick.unsure{background:none;border-left:2px dashed var(--omr)}
+.strip .tick span{position:absolute;top:-1px;left:4px;font-size:.62rem;color:var(--omr);font-family:var(--mono)}
+.strip .dot{position:absolute;top:5px;width:12px;height:12px;border-radius:50%;background:var(--me);transform:translateX(-6px);box-shadow:0 0 0 3px var(--surface)}
+.strip .scale{position:absolute;top:14px;font-size:.6rem;color:var(--muted);font-family:var(--mono)}
+.facts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.facts span{font-size:.76rem;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--rule)}
+.dist{grid-column:1/-1;display:flex;flex-direction:column;gap:5px;padding:10px 12px;background:var(--bg);border-radius:8px}
+.dist-h{font-size:.72rem;color:var(--muted);letter-spacing:.06em;margin-bottom:2px}
+.drow{display:grid;grid-template-columns:4.6em 1fr 3.4em;align-items:center;gap:10px;font-size:.8rem}
+.drow .r{font-family:var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.drow .bar{height:10px;background:var(--rule);border-radius:3px;overflow:hidden}
+.drow .bar i{display:block;height:100%;background:var(--omr);opacity:.8;border-radius:3px}
+.drow .n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.drow.mk .bar{height:0;background:none;border-top:2px dashed currentColor;border-radius:0}
+.drow.mk .r,.drow.mk .n{color:inherit;font-weight:600}
+.drow.mk.cut{color:var(--omr)}
+.drow.mk.me{color:var(--me)}
+.note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
+.empty{padding:28px 16px;color:var(--muted);text-align:center;font-size:.9rem}
+form{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
+form h2{margin:0;font-size:1rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.myin{font-family:var(--mono);font-weight:600;font-size:1.02rem;text-align:center;color:var(--me);background:var(--surface);border:1px dashed var(--me);padding:2px 4px;width:100%;max-width:5.5em}
+.myin::placeholder{color:var(--muted);font-weight:500;font-size:.8rem}
+.privacy{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--me);margin:4px 0 0}
+.grid.g3{grid-template-columns:1fr 1fr 2fr}
+label{display:flex;flex-direction:column;gap:4px;font-size:.76rem;color:var(--muted);letter-spacing:.03em;min-width:0}
+input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border:1px solid var(--rule);border-radius:6px;padding:7px 9px;min-width:0;width:100%;box-sizing:border-box}
+.grid4 input{font-family:var(--mono);text-align:center}
+.hint{font-size:.76rem;color:var(--muted);margin:0}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:700;font-size:.9rem;padding:8px 16px;border-radius:8px;border:0;background:var(--omr);color:#fff;cursor:pointer}
+.btn.ghost{background:none;color:var(--muted);border:1px solid var(--rule);font-weight:500}
+.foot{display:flex;flex-direction:column;gap:6px;font-size:.78rem;color:var(--muted)}
+.foot p{margin:0}
+.status{font-size:.8rem;color:var(--muted);min-height:1.2em;margin:0}
+@media (max-width:520px){
+  .grid,.grid.g3{grid-template-columns:1fr}
+  .grid4{grid-template-columns:repeat(2,1fr)}
+  .cuts{grid-template-columns:repeat(4,1fr)}
+  .cell.me{grid-column:1/-1;flex-direction:row;justify-content:center;gap:10px}
+}
+@media (prefers-reduced-motion:no-preference){.chip,.icon{transition:background .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>등급컷 <span>아카이브</span></h1>
+    <p class="sub">2학년 · 5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
+    <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
+  </header>
+
+  <div class="chips" id="chips" role="group" aria-label="시험 선택"></div>
+
+  <section class="summary" id="summary" hidden></section>
+
+  <section class="sheet" aria-live="polite">
+    <div class="sheet-head"><b id="examTitle">불러오는 중…</b><small id="count"></small></div>
+    <div id="rows"><div class="empty">등급컷을 불러오는 중이에요.</div></div>
+  </section>
+
+  <footer class="foot">
+    <p class="status" id="status"></p>
+    <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
+    <p><button class="icon" type="button" id="clear">내 점수 모두 지우기</button><span id="clearAsk" hidden> 정말 지울까요? <button class="icon danger" type="button" id="clearYes">지우기</button><button class="icon" type="button" id="clearNo">취소</button></span></p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const LKEY = "gradecut-my-scores";
+  let docs = [], current = null, scores = {}, renderWaiting = false;
+
+  const loadLocal = () => { try { return JSON.parse(localStorage.getItem(LKEY) || "{}"); } catch { return {}; } };
+  const saveLocal = () => { try { localStorage.setItem(LKEY, JSON.stringify(scores)); return true; } catch { return false; } };
+
+  const parse = v => {
+    const s = String(v ?? "").trim();
+    if (!s) return null;
+    const unsure = s.includes("?");
+    const n = parseFloat(s.replace(/[^\d.]/g, ""));
+    return isNaN(n) ? null : { n, unsure, raw: s.replace("?", "") };
+  };
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+
+  function gradeNum(d) {
+    const m = parse(d.my); if (!m) return null;
+    if (d.g) { const s = String(d.g); return { n: parseInt(s), u: s.includes("?") }; }
+    const cuts = d.c || [];
+    for (let i = 0; i < 4; i++) {
+      const c = parse(cuts[i]);
+      if (!c) return i === 0 ? null : { n: i + 1, u: true };
+      if (m.n >= c.n) return { n: i + 1, u: c.unsure };
+    }
+    return { n: 5, u: false };
+  }
+
+  function summaryHtml(rows) {
+    const items = rows.map(d => ({ d, g: gradeNum(d), m: parse(d.my) })).filter(x => x.m);
+    if (!items.length) return "";
+    const graded = items.filter(x => x.g);
+    const avg = graded.length ? (graded.reduce((s, x) => s + x.g.n, 0) / graded.length).toFixed(2) : "—";
+    const crOf = x => parseFloat(x.d.cr) || 0;
+    const totalCr = graded.reduce((s, x) => s + crOf(x), 0);
+    const wavg = graded.length && graded.every(x => crOf(x) > 0)
+      ? (graded.reduce((s, x) => s + x.g.n * crOf(x), 0) / totalCr).toFixed(2) : null;
+    const counts = {}; graded.forEach(x => counts[x.g.n] = (counts[x.g.n] || 0) + 1);
+    items.sort((a, b) => (a.g?.n ?? 9) - (b.g?.n ?? 9) || b.m.n - a.m.n);
+    const tiles = items.map(({ d, g, m }) => {
+      const c1 = parse((d.c || [])[0]);
+      const gap = c1 && !(d.c?.[0] || "").includes("↑") ? (m.n - c1.n) : null;
+      const gapTxt = gap === null ? "" : ` · 1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
+      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
+    }).join("");
+    const chips = Object.keys(counts).sort().map(k => `<span class="c${k}">${k}등급 ${counts[k]}과목</span>`).join("");
+    return `<div class="sum-head"><div class="sum-avg">${wavg
+      ? `<small>내 평균 등급 · 학점 가중</small><b>${wavg}<span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
+      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div><div class="sum-grid">${tiles}</div>`;
+  }
+
+  function badge(d) {
+    const m = parse(d.my);
+    if (!m) return `<div class="gb none"><b>—</b><i>점수 입력</i></div>`;
+    if (d.g) {
+      const u = String(d.g).includes("?"), n = String(d.g).replace("?", "");
+      return `<div class="gb g${esc(n)}${u ? " part" : ""}"><b>${esc(n)}</b><i>${u ? "거의 확정" : "등급"}</i></div>`;
+    }
+    const cuts = d.c || [];
+    for (let i = 0; i < 4; i++) {
+      const c = parse(cuts[i]);
+      if (!c) return i === 0
+        ? `<div class="gb none"><b>?</b><i>컷 대기</i></div>`
+        : `<div class="gb g${i + 1} part"><b>${i + 1}↓</b><i>등급 이하</i></div>`;
+      if (m.n >= c.n) return `<div class="gb g${i + 1}${c.unsure ? " part" : ""}"><b>${i + 1}</b><i>등급${c.unsure ? "?" : ""}</i></div>`;
+    }
+    return `<div class="gb g5"><b>5</b><i>등급</i></div>`;
+  }
+
+  function distHtml(d) {
+    const items = d.dist.map(x => ({ lo: parseFloat(x.r), r: x.r, n: x.n }));
+    const max = Math.max(...items.map(i => i.n), 1);
+    const marks = [];
+    (d.c || []).forEach((v, i) => { const p = parse(v); if (p) marks.push({ lo: p.n, mark: "cut", label: (i + 1) + "컷", v: p.raw }); });
+    const m = parse(d.my); if (m) marks.push({ lo: m.n, mark: "me", label: "나", v: m.raw });
+    const all = items.concat(marks).sort((a, b) => b.lo - a.lo || (a.mark ? -1 : 1));
+    return `<div class="dist"><div class="dist-h">점수 분포 · 알려진 구간만</div>` + all.map(x => x.mark
+      ? `<div class="drow mk ${x.mark}"><span class="r">${esc(x.v)}</span><span class="bar"></span><span class="n">${x.label}</span></div>`
+      : `<div class="drow"><span class="r">${esc(x.r)}</span><span class="bar"><i style="width:${x.n / max * 100}%"></i></span><span class="n">${x.n}명</span></div>`).join("") + `</div>`;
+  }
+
+  const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
+
+  function render() {
+    if (document.activeElement?.classList.contains("myin")) { renderWaiting = true; return; }
+    renderWaiting = false;
+    const list = exams();
+    if (!current || !list.includes(current)) current = list[0] || null;
+    $("chips").innerHTML = list.map(e =>
+      `<button class="chip" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}</button>`).join("");
+    if (!current) { $("examTitle").textContent = "아직 등급컷이 없어요"; $("rows").innerHTML = ""; return; }
+    const rows = docs.filter(d => d.exam === current).sort((a, b) => a.subject.localeCompare(b.subject, "ko"))
+      .map(d => ({ ...d, my: scores[d.id]?.my || "", g: scores[d.id]?.g || "" }));
+    const sum = summaryHtml(rows);
+    $("summary").innerHTML = sum;
+    $("summary").hidden = !sum;
+    $("examTitle").textContent = current;
+    $("count").textContent = rows.length + "과목";
+    $("rows").innerHTML = rows.map(d => {
+      const cuts = d.c || [];
+      const cells = [0, 1, 2, 3].map(i => {
+        const p = parse(cuts[i]);
+        return `<div class="cell"><i>${i + 1}컷</i>${p ? `<b class="${p.unsure ? "unsure" : ""}">${esc(p.raw)}</b>` : `<b class="none">—</b>`}</div>`;
+      }).join("");
+      const myP = parse(d.my);
+      const me = `<div class="cell me"><i>내 점수</i><input class="myin" id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수" value="${esc(d.my)}"></div>`;
+      const ticks = [0, 1, 2, 3].map(i => {
+        const p = parse(cuts[i]); if (!p) return "";
+        return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${Math.max(0, Math.min(100, p.n))}%"><span>${i + 1}</span></div>`;
+      }).join("");
+      const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
+      return `<div class="row">
+        <div class="subj">${badge(d)}<div class="sname">${esc(d.subject)}<small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
+        <div class="acts"></div>
+        <div class="cuts">${cells}${me}</div>
+        <div class="strip" aria-hidden="true"><div class="base"></div>
+          <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
+        ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
+        ${d.dist?.length ? distHtml(d) : ""}
+        ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  function saveScore(id, val) {
+    const prev = scores[id] || {};
+    const body = prev.g && prev.my === val ? { my: val, g: prev.g } : { my: val };
+    if (!val) delete scores[id]; else scores[id] = body;
+    $("status").textContent = saveLocal() ? "내 점수를 이 브라우저에 저장했어요." : "이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라져요.";
+  }
+
+  document.addEventListener("click", e => {
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.exam) { current = t.dataset.exam; render(); }
+    else if (t.id === "clear") { $("clearAsk").hidden = false; }
+    else if (t.id === "clearNo") { $("clearAsk").hidden = true; }
+    else if (t.id === "clearYes") { scores = {}; saveLocal(); $("clearAsk").hidden = true; $("status").textContent = "내 점수를 모두 지웠어요."; render(); }
+  });
+  document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
+  document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList?.contains("myin")) e.target.blur(); });
+  document.addEventListener("focusout", e => { if (e.target.classList?.contains("myin")) setTimeout(render, 0); });
+
+  // 개인 점수 가져오기 링크: #s=<base64 JSON>
+  if (location.hash.startsWith("#s=")) {
+    try {
+      const data = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(3)))));
+      scores = { ...loadLocal(), ...data };
+      saveLocal();
+      history.replaceState(null, "", location.pathname);
+    } catch { scores = loadLocal(); }
+  } else scores = loadLocal();
+
+  fetch("cuts.json", { cache: "no-store" }).then(r => r.json()).then(j => {
+    docs = j.subjects || [];
+    $("updated").textContent = "등급컷 업데이트 " + (j.updated || "");
+    render();
+  }).catch(() => {
+    $("examTitle").textContent = "등급컷을 불러오지 못했어요";
+    $("rows").innerHTML = `<div class="empty">새로고침해 주세요.</div>`;
+  });
+})();
+</script>
+</body>
+</html>
