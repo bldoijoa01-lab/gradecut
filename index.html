@@ -141,6 +141,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 .pchip:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 .pnote{font-size:.76rem;color:var(--muted);margin:0}
 .nocut{grid-column:span 4;display:flex;align-items:center;justify-content:center;padding:10px;border:1px dashed var(--rule);border-radius:6px;color:var(--muted);font-size:.84rem}
+.asof{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:.8rem;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--rule);color:var(--ink);margin:6px 0 0;font-variant-numeric:tabular-nums}
+.asof::before{content:"";width:7px;height:7px;border-radius:50%;background:#2fb36b}
+.rowat{grid-column:1/-1;font-size:.72rem;color:var(--muted);margin:0;font-variant-numeric:tabular-nums}
 .alias{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:4px}
 @media (prefers-reduced-motion:no-preference){.chip,.icon{transition:background .15s,border-color .15s}}
 </style>
@@ -150,6 +153,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   <header>
     <h1>등급컷 <span>아카이브</span></h1>
     <p class="sub">2학년 · 5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
+    <p class="asof" id="asof">등급컷 불러오는 중</p>
     <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
   </header>
 
@@ -273,6 +277,14 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       : `<div class="drow"><span class="r">${esc(x.r)}</span><span class="bar"><i style="width:${x.n / max * 100}%"></i></span><span class="n">${x.n}명</span></div>`).join("") + `</div>`;
   }
 
+  const fmt = (iso, short) => {
+    const d = new Date(iso); if (isNaN(d)) return "";
+    const p = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(d);
+    const g = t => p.find(x => x.type === t)?.value || "";
+    return short ? `${g("month")}/${g("day")} ${g("dayPeriod")} ${g("hour")}:${g("minute")}`
+                 : `${g("month")}월 ${g("day")}일(${g("weekday")}) ${g("dayPeriod")} ${g("hour")}:${g("minute")}`;
+  };
+
   const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
 
   function render() {
@@ -323,6 +335,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
         ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
         ${d.dist?.length ? distHtml(d) : ""}
         ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
+        ${d.at ? `<p class="rowat">컷 업데이트 ${fmt(d.at, true)}</p>` : ""}
       </div>`;
     }).join("");
   }
@@ -368,7 +381,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 
   fetch("cuts.json", { cache: "no-store" }).then(r => r.json()).then(j => {
     docs = j.subjects || [];
-    $("updated").textContent = "등급컷 업데이트 " + (j.updated || "");
+    const when = fmt(j.updated);
+    $("asof").textContent = when ? `${when} 기준 등급컷` : "등급컷 기준 시각 미정";
+    $("updated").textContent = when ? `마지막 업데이트 ${when} (한국 시간)` : "";
     render();
   }).catch(() => {
     $("examTitle").textContent = "등급컷을 불러오지 못했어요";
