@@ -222,6 +222,11 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
         a, b, tot, k = c
         p_in = float(m.mass(a, b)) / max(float(m.mass(c_lo(spec, a), b)), 1e-300)
         L += math.log(max(1 - _binom_cdf(k - 1, tot, p_in), 1e-300))
+    for a, b, slo, shi, q, above in spec.get("cond_max", []):   # 예: 2컷 ≤ 60점
+        k = rk(q, N) - 1 - above
+        n_seg = next(g["total"] for g in groups if any(abs(pieces[i]["lo"] - a) < 1e-9 for i in g["idx"]))
+        p_in = float(m.mass(a, b)) / max(float(m.mass(slo, shi)), 1e-300)
+        L += math.log(max(_binom_cdf(k, n_seg, p_in), 1e-300))
     return L
 
 
@@ -355,13 +360,18 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
         mass = np.array([float(m.mass(p["lo"], p["hi"])) for p in pieces])
         R = [rk(q, N) for q in Q]
         # 조건 (예: 물리 85점 이상이 80점대에서 6명 이상)
-        cond_by_group = {}
-        for c in spec.get("cond_min", []):
-            a, b, tot, k = c
+        conds = {}
+        rules = [(c[0], c[1], ">=", c[3]) for c in spec.get("cond_min", [])] + \
+                [(c[0], c[1], "<=", rk(c[4], N) - 1 - c[5]) for c in spec.get("cond_max", [])]
+        for a, b, op, k in rules:
             for gi, g in enumerate(groups):
                 for jj, pi in enumerate(g["idx"]):
                     if abs(pieces[pi]["lo"] - a) < 1e-9 and abs(pieces[pi]["hi"] - b) < 1e-9:
-                        cond_by_group[gi] = (lambda jj, k: (lambda out: out[:, jj] >= k))(jj, k)
+                        f = (lambda jj, k: (lambda out: out[:, jj] >= k))(jj, k) if op == ">=" else \
+                            (lambda jj, k: (lambda out: out[:, jj] <= k))(jj, k)
+                        conds.setdefault(gi, []).append(f)
+        cond_by_group = {gi: (lambda fs: (lambda out: np.logical_and.reduce([f(out) for f in fs])))(fs)
+                         for gi, fs in conds.items()}
         # 본인 없이 채운 기본 배정
         base = np.zeros((D, P), int)
         for p_i, p in enumerate(pieces):
@@ -445,9 +455,10 @@ SPECS = {
         why="1~3컷 확정 + 평균 + 만점자 수", est=[3]),
     "2026-2mid-physics": dict(
         N=[116, 119, 117], counts=[(90, 6), (80, 17)], mean=50.9,
-        splits=[85], cond_min=[(85, 90, 11, 6)], cond_seg_lo=80,
+        splits=[85, 60], cond_min=[(85, 90, 11, 6)], cond_seg_lo=80,
+        cond_max=[(60, 80, 0, 80, 0.34, 17)],      # '1·2컷 갭이 크다' → 2컷 60점 이하
         bimodal=True, families=["mix2"],
-        why="90점 이상 6명·80점대 11명·평균 확정, 1컷 80 중후반·쌍봉(선생님)", est=[0, 1, 2, 3]),
+        why="90점 이상 6명·80점대 11명·평균 확정, 1컷 80 중후반·쌍봉·1·2컷 갭 큼(2컷 60 이하, 선생님 말씀 해석)", est=[0, 1, 2, 3]),
     "2026-2mid-hwaeon": dict(
         N=227, cuts=[(75, .10)], counts=[(95, 1), (90, 3)],
         bands=[(70, 75, 8), (65, 70, 24), (45, 50, 38), (40, 45, 30)],
