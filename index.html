@@ -206,8 +206,10 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 
   // 개인 고정 등급(g)이 '?'(거의 확정)인데 컷으로 등급이 확정되면 컷 계산을 우선
+  const sureHit = d => { const m = parse(d.my); return d.sure && m && m.n >= d.sure; };
   function useG(d) {
     if (!d.g) return false;
+    if (sureHit(d)) return false;
     if (!String(d.g).includes("?")) return true;
     const m = parse(d.my); const cuts = d.c || [];
     if (!m) return true;
@@ -221,6 +223,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 
   function gradeNum(d) {
     const m = parse(d.my); if (!m) return null;
+    if (sureHit(d)) return { n: 1, u: false };
     if (useG(d)) { const s = String(d.g); return { n: parseInt(s), u: s.includes("?") }; }
     const cuts = d.c || [];
     for (let i = 0; i < 4; i++) {
@@ -257,6 +260,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   function badge(d) {
     const m = parse(d.my);
     if (!m) return `<div class="gb none"><b>—</b><i>점수 입력</i></div>`;
+    if (sureHit(d)) return `<div class="gb g1" tabindex="0" data-tip="${esc(d.sure)}점 이상은 석차상 1등급 안에 들어서 확정이에요."><b>1</b><i>등급</i></div>`;
     if (useG(d)) {
       const u = String(d.g).includes("?"), n = String(d.g).replace("?", "");
       return `<div class="gb g${esc(n)}${u ? " part" : ""}"${u ? ` tabindex="0" data-tip="공식 컷은 아직 없지만, 점수로 보면 거의 확실한 등급이에요."` : ""}><b>${esc(n)}</b><i>${u ? "거의 확정" : "등급"}</i></div>`;
