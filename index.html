@@ -83,6 +83,8 @@ h1 span{color:var(--omr)}
 .cell b.none{color:var(--rule)}
 .cell.me{background:var(--omr-soft);border-color:transparent}
 .cell.me b{color:var(--me)}
+.rk{font-size:.72rem;color:var(--me);font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap}
+.rk.est{border-bottom:1px dotted var(--me)}
 .strip{grid-column:1/-1;position:relative;height:22px;margin-top:2px}
 .strip .base{position:absolute;left:0;right:0;top:10px;height:2px;background:var(--rule);border-radius:2px}
 .strip .tick{position:absolute;top:3px;width:2px;height:16px;background:var(--omr);transform:translateX(-1px)}
@@ -276,6 +278,38 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     return `<div class="gb g5"><b>5</b><i>등급</i></div>`;
   }
 
+  // 석차 추정: 컷(상위 10/34/66/90%)과 알려진 인원(anchors: [점수, 그 점수 이상 인원])을 이어 직선 보간
+  function rankOf(d) {
+    const m = parse(d.my); if (!m) return null;
+    const N = parseFloat(d.n) || 0;
+    const pts = [[100, 0]];
+    const fr = [0.10, 0.34, 0.66, 0.90];
+    let est = false, lowest = null;
+    (d.c || []).forEach((v, i) => { const p = parse(v); if (p) { pts.push([p.n, fr[i]]); if (p.unsure) est = true; lowest = i; } });
+    if (N) (d.anchors || []).forEach(([sc, cnt]) => pts.push([sc, cnt / N]));
+    if (pts.length < 2) return null;
+    if (lowest === 3) pts.push([0, 1]);
+    pts.sort((a, b) => b[0] - a[0]);
+    for (let i = 1; i < pts.length; i++) pts[i][1] = Math.max(pts[i][1], pts[i - 1][1]);
+    const last = pts[pts.length - 1];
+    if (m.n < last[0]) return { below: true, frac: last[1], N, est };
+    let frac = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const [s1, f1] = pts[i - 1], [s2, f2] = pts[i];
+      if (m.n <= s1 && m.n >= s2) { frac = s1 === s2 ? f2 : f1 + (s1 - m.n) / (s1 - s2) * (f2 - f1); break; }
+    }
+    return { frac, N, est, rank: N ? Math.max(1, Math.round(frac * N)) : null };
+  }
+  function rankHtml(d) {
+    const r = rankOf(d); if (!r) return "";
+    const pct = Math.max(0.1, r.frac * 100);
+    const pctTxt = pct < 10 ? pct.toFixed(1) : Math.round(pct);
+    const tip = "컷과 알려진 인원 사이를 직선으로 이어서 계산한 추정 석차예요." + (r.est ? " 추정 컷이 섞여 있어서 오차가 더 클 수 있어요." : "");
+    const txt = r.below ? `상위 ${Math.round(r.frac * 100)}% 밖`
+      : r.rank ? `약 ${r.rank}등/${r.N} · 상위 ${pctTxt}%` : `상위 약 ${pctTxt}%`;
+    return `<span class="rk est" tabindex="0" data-tip="${esc(tip)}">${txt}</span>`;
+  }
+
   function distHtml(d) {
     const items = d.dist.map(x => ({ lo: parseFloat(x.r), r: x.r, n: x.n }));
     const max = Math.max(...items.map(i => i.n), 1);
@@ -333,7 +367,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
           : `<b>${esc(p.raw)}</b>`) : `<b class="none">—</b>`}</div>`;
       }).join("");
       const myP = parse(d.my);
-      const me = `<div class="cell me"><i>내 점수</i><input class="myin" id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수" value="${esc(d.my)}"></div>`;
+      const me = `<div class="cell me"><i>내 점수</i><input class="myin" id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수" value="${esc(d.my)}">${rankHtml(d)}</div>`;
       const ticks = [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]); if (!p) return "";
         return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${Math.max(0, Math.min(100, p.n))}%"><span>${i + 1}</span></div>`;
