@@ -64,11 +64,11 @@ def build(spec, families):
 
 H, S = 100, 5   # weights: hard / soft
 specs = {
- '2026-2mid-english': dict(n=227, pts=[(91.9, .10, H), (76.2, .34, H), (53, .66, H), (29.8, .90, H)]),
+ '2026-2mid-english': dict(n=227, pts=[(95.5, 18/227, H), (91.9, .10, H), (76.2, .34, H), (53, .66, H), (29.8, .90, H)]),
  '2026-2mid-calc':    dict(n=227, pts=[(88.4, .10, H), (68.5, .34, H), (51, .66, H)]),
  '2026-2mid-geometry':dict(n=120, pts=[(88.5, .10, H), (67, .34, H), (48, .66, S), (26, .90, S)]),
  '2026-2mid-chem':    dict(n=117, pts=[(96, .10, H), (79, .34, H)]),
- '2026-2mid-bio':     dict(n=117, mean=69.7, pts=[(94.8, .10, H), (81.6, .34, H), (64.3, .66, H)]),
+ '2026-2mid-bio':     dict(n=117, mean=69.7, pts=[(99.5, 1/117, H), (94.8, .10, H), (81.6, .34, H), (64.3, .66, H)]),
  '2026-2mid-physics': dict(n=117, mean=50.9, pts=[(90, 6/117, H), (80, 17/117, H), (87, .10, S), (53, .34, S), (40, .66, S), (29, .90, S)]),
  '2026-2mid-hwaeon':  dict(n=227, pts=[(95, 1/227, H), (90, 3/227, H), (75, .10, H), (70, 31/227, H), (65, 55/227, H)],
                           bands=[(45, 50, 38, 60), (40, 45, 30, 60)]),
@@ -83,6 +83,8 @@ for k, sp in specs.items():
     print(k, r['fam'], 'loss', '%.2e' % r['loss'], 'mean', r['mean'], 'cuts', r['cuts'])
 json.dump(out, open('/tmp/claude-0/-home-claude/32c4347f-4e96-552b-b16e-e689c25e5f2a/scratchpad/fit/tabs.json', 'w'))
 
-t=np.array(out['2026-2mid-hwaeon']['tab']); N=227
-for lo,hi in [(95,100),(90,95),(75,100),(70,75),(65,70),(45,50),(40,45),(50,65)]:
-    print('hwaeon',lo,hi, round((t[lo]-t[hi])*N,1))
+t=np.array(out['2026-2mid-english']['tab']); N=227
+for sc in (100,96,95.5,93,91.9,90,88,85,80,76.2): print('eng',sc, round(float(np.interp(sc,np.arange(101),t))*N,1))
+
+t=np.array(out['2026-2mid-bio']['tab']); N=117
+for sc in (100,99.5,98,96.8,95,94.8): print('bio',sc, round(float(np.interp(sc,np.arange(101),t))*N,1))
