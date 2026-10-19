@@ -92,6 +92,8 @@ h1 span{color:var(--omr)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
 .cell.me{flex-wrap:wrap}
 .rk{font-size:.72rem;color:var(--me);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rk small{font-size:.92em;font-weight:500;color:var(--muted)}
+.rng{font-size:.68rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .rk.est{border-bottom:1px dotted var(--me)}
 .strip{grid-column:1/-1;position:relative;height:22px;margin-top:2px}
 .strip .base{position:absolute;left:0;right:0;top:10px;height:2px;background:var(--rule);border-radius:2px}
@@ -188,7 +190,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   <footer class="foot">
     <p class="status" id="status"></p>
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
-    <p class="legend">석차 신뢰도 <span class="conf hi">높음</span> 확정 컷·인원 정보가 충분 <span class="conf mid">중간</span> 컷 일부만 확정 <span class="conf lo">낮음</span> 정보가 거의 없음</p>
+    <p class="legend">석차 신뢰도는 90% 범위가 얼마나 좁은지로 정해요 <span class="conf hi">높음</span> 범위 폭이 응시 인원의 6% 이하 <span class="conf mid">중간</span> 12% 이하 <span class="conf lo">낮음</span> 그보다 넓음</p>
+    <p id="validation"></p>
     <p><button class="icon" type="button" id="clear">내 점수 모두 지우기</button><span id="clearAsk" hidden> 정말 지울까요? <button class="icon danger" type="button" id="clearYes">지우기</button><button class="icon" type="button" id="clearNo">취소</button></span></p>
   </footer>
 </div>
@@ -232,18 +235,52 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     return false;
   }
 
-  function gradeNum(d) {
+  // 시뮬레이션 표(rx 점수 격자마다 등수 5%/50%/95%, 등급 확률 %)에서 x점 값을 보간
+  function simAt(d, x) {
+    const X = d.rx;
+    if (!Array.isArray(X) || !Array.isArray(d.r50) || X.length < 2) return null;
+    x = Math.max(X[0], Math.min(X[X.length - 1], x));
+    let a = 0, b = X.length - 1;
+    while (b - a > 1) { const c = (a + b) >> 1; if (X[c] <= x) a = c; else b = c; }
+    const t = X[b] > X[a] ? (x - X[a]) / (X[b] - X[a]) : 0;
+    const L = arr => arr[a] * (1 - t) + arr[b] * t;
+    const gp = Array.isArray(d.gp) ? [0, 1, 2, 3, 4].map(k => d.gp[a][k] * (1 - t) + d.gp[b][k] * t) : null;
+    return { lo: Math.round(L(d.r05)), mid: Math.round(L(d.r50)), hi: Math.round(L(d.r95)), gp };
+  }
+  function gradeProbText(gp) {
+    const items = gp.map((p, k) => [k + 1, Math.round(p)]).filter(([, p]) => p >= 1);
+    if (items.length === 1 || items.some(([, p]) => p >= 99)) {
+      const top = items.reduce((a, b) => (b[1] > a[1] ? b : a));
+      return `등급: ${top[0]}등급 (확률 99% 이상)`;
+    }
+    return "등급 확률: " + items.map(([g, p]) => `${g}등급 ${p}%`).join(" · ");
+  }
+
+  // 등급 판단: 확정 컷 → (불확실하면) 시뮬레이션 확률 → 개인 고정값 → 추정 컷
+  function gradeInfo(d) {
     const m = parse(d.my); if (!m) return null;
-    if (sureHit(d)) return { n: 1, u: false };
-    if (useG(d)) { const s = String(d.g); return { n: parseInt(s), u: s.includes("?") }; }
+    if (sureHit(d)) return { n: 1, u: false, tip: `${d.sure}점 이상은 석차상 1등급 안에 들어서 확정이에요.` };
     const cuts = d.c || [];
+    let det = null;
     for (let i = 0; i < 4; i++) {
       const c = parse(cuts[i]);
-      if (!c) return i === 0 ? null : { n: i + 1, u: true };
-      if (m.n >= c.n) return { n: i + 1, u: c.unsure };
+      if (!c) { det = i === 0 ? null : { n: i + 1, u: true, below: true }; break; }
+      if (m.n >= c.n) { det = { n: i + 1, u: c.unsure }; break; }
+      if (i === 3) det = { n: 5, u: false };
     }
-    return { n: 5, u: false };
+    if (det && !det.u) return det;
+    const s = simAt(d, m.n);
+    if (s && s.gp) {
+      let best = 0;
+      s.gp.forEach((p, k) => { if (p > s.gp[best]) best = k; });
+      const pmax = Math.round(s.gp[best]);
+      return { n: best + 1, u: pmax < 95, prob: true, pmax, tip: gradeProbText(s.gp) + (pmax < 95 ? "\n추정 컷 근처라 등급이 바뀔 수 있어요." : "") };
+    }
+    if (useG(d)) { const g = String(d.g); return { n: parseInt(g), u: g.includes("?"), tip: "공식 컷은 아직 없지만, 점수로 보면 거의 확실한 등급이에요." }; }
+    if (det) return { ...det, tip: det.below ? "아랫 컷이 아직 없어서 몇 등급 이하인지까지만 알 수 있어요." : "추정한 컷 기준이라 실제 컷이 나오면 바뀔 수 있어요." };
+    return null;
   }
+  const gradeNum = d => gradeInfo(d);
 
   function summaryHtml(rows) {
     const items = rows.map(d => ({ d, g: gradeNum(d), m: parse(d.my) })).filter(x => x.m);
@@ -260,7 +297,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const c1 = parse((d.c || [])[0]);
       const gap = c1 && !(d.c?.[0] || "").includes("↑") ? (m.n - c1.n) : null;
       const gapTxt = gap === null ? "" : ` · 1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
-      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u ? ` tabindex="0" data-tip="${useG(d) ? "공식 컷은 아직 없지만, 점수로 보면 거의 확실한 등급이에요." : "추정한 컷 기준이라 실제 컷이 나오면 바뀔 수 있어요."}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
+      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u && g.tip ? ` tabindex="0" data-tip="${esc(g.tip)}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
     }).join("");
     const chips = Object.keys(counts).sort().map(k => `<span class="c${k}">${k}등급 ${counts[k]}과목</span>`).join("");
     return `<div class="sum-head"><div class="sum-avg">${wavg
@@ -271,26 +308,18 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   function badge(d) {
     const m = parse(d.my);
     if (!m) return `<div class="gb none"><b>—</b><i>점수 입력</i></div>`;
-    if (sureHit(d)) return `<div class="gb g1" tabindex="0" data-tip="${esc(d.sure)}점 이상은 석차상 1등급 안에 들어서 확정이에요."><b>1</b><i>등급</i></div>`;
-    if (useG(d)) {
-      const u = String(d.g).includes("?"), n = String(d.g).replace("?", "");
-      return `<div class="gb g${esc(n)}${u ? " part" : ""}"${u ? ` tabindex="0" data-tip="공식 컷은 아직 없지만, 점수로 보면 거의 확실한 등급이에요."` : ""}><b>${esc(n)}</b><i>${u ? "거의 확정" : "등급"}</i></div>`;
-    }
-    const cuts = d.c || [];
-    for (let i = 0; i < 4; i++) {
-      const c = parse(cuts[i]);
-      if (!c) return i === 0
-        ? `<div class="gb none"><b>?</b><i>컷 대기</i></div>`
-        : `<div class="gb g${i + 1} part" tabindex="0" data-tip="아랫 컷이 아직 없어서 몇 등급 이하인지까지만 알 수 있어요."><b>${i + 1}↓</b><i>등급 이하</i></div>`;
-      if (m.n >= c.n) return `<div class="gb g${i + 1}${c.unsure ? " part" : ""}"${c.unsure ? ` tabindex="0" data-tip="추정한 컷 기준이라 실제 컷이 나오면 바뀔 수 있어요."` : ""}><b>${i + 1}</b><i>등급${c.unsure ? "?" : ""}</i></div>`;
-    }
-    return `<div class="gb g5"><b>5</b><i>등급</i></div>`;
+    const g = gradeInfo(d);
+    if (!g) return `<div class="gb none"><b>?</b><i>컷 대기</i></div>`;
+    const sub = g.below ? "등급 이하" : g.prob && g.u ? `확률 ${g.pmax}%` : g.u ? "등급?" : "등급";
+    return `<div class="gb g${g.n}${g.u ? " part" : ""}"${g.tip ? ` tabindex="0" data-tip="${esc(g.tip)}"` : ""}><b>${g.n}${g.below ? "↓" : ""}</b><i>${sub}</i></div>`;
   }
 
   // 석차 추정: 컷(상위 10/34/66/90%)과 알려진 인원(anchors: [점수, 그 점수 이상 인원])을 이어 직선 보간
   function rankOf(d) {
     const m = parse(d.my); if (!m) return null;
     const N = parseFloat(d.n) || 0;
+    const s = N ? simAt(d, m.n) : null;
+    if (s) return { sim: true, rank: Math.max(1, s.mid), lo: Math.max(1, s.lo), hi: Math.min(N, s.hi), N, frac: s.mid / N, gp: s.gp };
     // 분포 모델 표: tab[점수] = 그 점수 이상인 사람 비율 (평균·컷·점수대 인원에 맞춰 미리 계산)
     if (Array.isArray(d.tab) && d.tab.length === 101) {
       const x = Math.max(0, Math.min(100, m.n));
@@ -317,10 +346,25 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     }
     return { frac, N, est, rank: N ? Math.max(1, Math.round(frac * N)) : null };
   }
+  // 신뢰도 = 90% 범위 폭 ÷ 응시 인원 (아래 기준은 범례와 같음)
+  const CONF_HI = 0.06, CONF_MID = 0.12;
   function rankHtml(d) {
     const r = rankOf(d); if (!r) return "";
     const pct = Math.max(0.1, r.frac * 100);
     const pctTxt = pct < 10 ? pct.toFixed(1) : Math.round(pct);
+    if (r.sim) {
+      const w = (r.hi - r.lo) / r.N;
+      const [lv, cls] = w <= CONF_HI ? ["높음", "hi"] : w <= CONF_MID ? ["중간", "mid"] : ["낮음", "lo"];
+      const tip = [
+        `추정 석차 · 신뢰도 ${lv}`,
+        r.lo === r.hi ? `${r.lo}등으로 확정에 가까워요` : `90% 범위: ${r.lo}~${r.hi}등 (10번 중 9번은 이 안)`,
+        `범위 폭: 전체 ${r.N}명의 ${Math.round(w * 100)}%`,
+        r.gp ? gradeProbText(r.gp) : "",
+        `계산: 사실과 맞는 분포 ${d.rk_models || "여러"}개 × 가상의 반 ${d.rk_sims || 40}개`,
+        d.rk_why ? "근거: " + d.rk_why : ""
+      ].filter(Boolean).join("\n");
+      return `<span class="rkwrap"><span class="rk">약 ${r.rank}등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span><span class="conf ${cls} tr" tabindex="0" data-tip="${esc(tip)}">${lv}</span></span>`;
+    }
     const m = parse(d.my);
     let lv = d.rk_conf || (r.est ? "낮음" : "중간");
     if (d.rk_low_below && m && m.n < d.rk_low_below) lv = "낮음";
@@ -390,7 +434,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const cells = noCut ? `<div class="nocut">아직 등급컷이 없어요</div>` : [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]);
         return `<div class="cell"><i>${i + 1}컷</i>${p ? (p.unsure
-          ? `<b class="unsure${i >= 2 ? " tr" : ""}" tabindex="0" data-tip="${esc("추정 컷 · 아직 확정 아님" + (d.note ? "\n" + d.note.replace(/ · /g, "\n").replace(/요\. /g, "요.\n").replace(/ \(([^)]*?)\s*범위\)/, "\n범위: $1") : ""))}">${esc(p.raw)}</b>`
+          ? `<b class="unsure${i >= 2 ? " tr" : ""}" tabindex="0" data-tip="${esc(d.cut_ranges && d.cut_ranges[i + 1]
+              ? `추정 컷 · 아직 확정 아님\n90% 범위: ${d.cut_ranges[i + 1][0]}~${d.cut_ranges[i + 1][2]}점\n(10번 중 9번은 이 안)` + (d.rk_why ? "\n근거: " + d.rk_why : "")
+              : "추정 컷 · 아직 확정 아님" + (d.note ? "\n" + d.note.replace(/ · /g, "\n").replace(/요\. /g, "요.\n").replace(/ \(([^)]*?)\s*범위\)/, "\n범위: $1") : ""))}">${esc(p.raw)}</b>`
           : `<b>${esc(p.raw)}</b>`) : `<b class="none">—</b>`}</div>`;
       }).join("");
       const myP = parse(d.my);
@@ -457,6 +503,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 
   fetch("cuts.json", { cache: "no-store" }).then(r => r.json()).then(j => {
     docs = j.subjects || [];
+    if (j.validation) $("validation").textContent = `계산 방법 검증: 이미 아는 실제 컷 ${j.validation.total}개를 하나씩 숨기고 나머지 정보로 맞혀 봤더니 ${j.validation.coverage}개가 90% 범위 안에 들어왔어요 (평균 오차 ${j.validation.mae}점).`;
     const when = fmt(j.updated);
     $("asof").textContent = when ? `${when} 기준 등급컷` : "등급컷 기준 시각 미정";
     $("updated").textContent = when ? `마지막 업데이트 ${when} (한국 시간)` : "";
