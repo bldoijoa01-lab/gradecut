@@ -1,2 +1,4 @@
 tools/*.log
 tools/__pycache__/
+tools/estimate_report.json
+tools/validation*.json
