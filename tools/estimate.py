@@ -36,7 +36,65 @@ FAMILIES = {
     "mcq": dict(lo=[0.1, 0.1], hi=[80, 80]),
     # 객관식 + 두 무리(혼합): w, a1, b1, a2, b2
     "mcq2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1], hi=[0.95, 80, 80, 80, 80]),
+    # 문항별 배점 + '어려운 문항' 반영: 실력 p~Beta(a,b), 어려운 문항 정답률 = logit(p) - d
+    "irt": dict(lo=[0.1, 0.1, 0.3], hi=[80, 80, 5]),
+    "irt2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1, 0.3], hi=[0.95, 80, 80, 80, 80, 5]),
+    # 문항별 배점만 반영 (어려운 문항 정보 없음)
+    "itm": dict(lo=[0.1, 0.1], hi=[80, 80]),
+    "itm2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1], hi=[0.95, 80, 80, 80, 80]),
 }
+_IRT = {}   # 미리 계산한 성분(어려운 문항 조합 × 일반 문항 틀린 개수)별 누적분포
+
+
+def _irt_setup():
+    key = (tuple(CTX["values"]), tuple(CTX.get("hard", [])))
+    if _IRT.get("key") == key:
+        return _IRT
+    vals = np.array(CTX["values"], float)
+    hard = [h - 1 for h in CTX.get("hard", [])]
+    hv = vals[hard]
+    nv = np.delete(vals, hard)
+    nN, mN, sN = len(nv), nv.mean(), nv.std()
+    subsets = [[j for j in range(len(hv)) if (m >> j) & 1] for m in range(2 ** len(hv))]
+    mus, sds, nh = [], [], []
+    for sub in subsets:
+        Ls = hv[sub].sum() if sub else 0.0
+        for k in range(nN + 1):
+            mus.append(100 - Ls - k * mN)
+            sds.append(max(math.sqrt(k * sN ** 2 * (nN - k) / max(nN - 1, 1)), 0.05))
+            nh.append(len(sub))
+    mus = np.clip(np.array(mus), 0.1, 99.9)
+    sds = np.array(sds)
+    PHI = special.ndtr((FINE[None, :] - mus[:, None]) / sds[:, None])
+    pg = (np.arange(400) + 0.5) / 400
+    _IRT.update(key=key, PHI=PHI, nh=np.array(nh), nH=len(hv), nN=nN, nsub=len(subsets), pg=pg,
+                logit=np.log(pg / (1 - pg)),
+                kN=np.arange(nN + 1))
+    return _IRT
+
+
+def _irt_weights(pw, d):
+    """pw: 실력 격자 가중치(합 1). 반환: 성분별 확률."""
+    S = _irt_setup()
+    pg, nN, nH = S["pg"], S["nN"], S["nH"]
+    q = 1 / (1 + np.exp(-(S["logit"] - d)))                       # 어려운 문항 정답률
+    k = S["kN"]
+    lbin = (special.gammaln(nN + 1) - special.gammaln(k + 1) - special.gammaln(nN - k + 1))
+    PK = np.exp(lbin[None, :] + k[None, :] * np.log1p(-pg)[:, None] + (nN - k)[None, :] * np.log(pg)[:, None])
+    W = []
+    for m in range(S["nsub"]):
+        h = bin(m).count("1")
+        Ps = (1 - q) ** h * q ** (nH - h)
+        W.append((pw * Ps) @ PK)
+    W = np.concatenate(W)
+    return W / W.sum()
+
+
+def _beta_grid(a, b):
+    pg = _irt_setup()["pg"]
+    lw = (a - 1) * np.log(pg) + (b - 1) * np.log1p(-pg)
+    w = np.exp(lw - lw.max())
+    return w / w.sum()
 CTX = {}   # 객관식 과목 정보 (문항 수, 배점 표준편차)
 
 
@@ -74,6 +132,15 @@ def raw_cdf(fam, th, x):
     if fam == "mcq2":
         w, a1, b1, a2, b2 = th
         return _mcq_cdf(w * _bb_pmf(CTX["n"], a1, b1) + (1 - w) * _bb_pmf(CTX["n"], a2, b2), x)
+    if fam in ("irt", "irt2", "itm", "itm2"):
+        assert x is FINE
+        if fam in ("irt", "itm"):
+            pw = _beta_grid(th[0], th[1]); d = th[2] if fam == "irt" else 0.0
+        else:
+            w, a1, b1, a2, b2 = th[:5]
+            d = th[5] if fam == "irt2" else 0.0
+            pw = w * _beta_grid(a1, b1) + (1 - w) * _beta_grid(a2, b2)
+        return _irt_weights(pw, d) @ _irt_setup()["PHI"]
     raise ValueError(fam)
 
 
@@ -198,7 +265,7 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
         return -np.inf
     if fam == "mix2" and th[1] <= th[3]:
         return -np.inf
-    if fam == "mcq2" and th[1] / (th[1] + th[2]) >= th[3] / (th[3] + th[4]):
+    if fam in ("mcq2", "irt2", "itm2") and th[1] / (th[1] + th[2]) >= th[3] / (th[3] + th[4]):
         return -np.inf
     m = Model(fam, th)
     if not m.ok:
@@ -252,7 +319,7 @@ def run_family(spec, fam, n_keep=300, iters=6000, chains=6, quiet=False):
         th = lo + RNG.random(len(lo)) * (hi - lo)
         if fam == "mix2" and th[1] <= th[3]:
             th[1], th[3] = th[3] + 1, th[1]
-        if fam == "mcq2" and th[1] / (th[1] + th[2]) >= th[3] / (th[3] + th[4]):
+        if fam in ("mcq2", "irt2", "itm2") and th[1] / (th[1] + th[2]) >= th[3] / (th[3] + th[4]):
             th[1:3], th[3:5] = th[3:5].copy(), th[1:3].copy()
         v = f(th)
         if np.isfinite(v):
@@ -437,8 +504,13 @@ SPECS = {
         N=227,
         cuts=[(91.9, .10), (76.2, .34), (53, .66), (29.8, .90)],
         counts=[(95.5, [16, 20]), (10.2, "N")],   # 1개 틀림 16~17명 + 만점 0~3명, 최저점 10.2
-        mcq=dict(n=26, sd=0.304), families=["mcq", "mcq2"],   # 선택형 26문항, 배점 3.3~4.3
-        why="4컷 모두 확정 + 1개 틀린 인원 + 최저점, 객관식 26문항 점수 구조 반영"),
+        # 선택형 26문항 실제 배점.
+        # 11·25·26번(외부 지문)을 더 어렵게 두는 모형(irt, hard=[11,25,26])도 만들어 봤지만
+        # 숨긴 컷 맞히기에서 4개 중 1개만 범위 안(평균 오차 7.9점)이라 쓰지 않음
+        mcq=dict(values=[3.8, 3.5, 3.5, 3.8, 3.3, 3.3, 4.2, 4.1, 4.3, 4.1, 3.9, 3.5, 4.2, 4.3, 3.8, 3.7, 3.6,
+                         3.7, 3.9, 3.5, 4.1, 3.9, 3.7, 3.8, 4.2, 4.3], hard=[]),
+        families=["itm", "itm2"],
+        why="4컷 모두 확정 + 1개 틀린 인원 + 최저점, 26문항 실제 배점 반영"),
     "2026-2mid-calc": dict(
         N=227, cuts=[(88.4, .10), (68.5, .34), (51, .66)],
         why="1~3컷 확정", est=[3]),
@@ -448,7 +520,11 @@ SPECS = {
         why="1·2컷 확정, 3·4컷은 친구 추정값(48·26)을 약하게 반영", est=[2, 3]),
     "2026-2mid-chem": dict(
         N=[116, 119, 117], cuts=[(96, .10), (79, .34)],
-        why="1·2컷만 확정, 평균 모름", est=[2, 3]),
+        # 선택형 28문항 실제 배점 (2.5~5.0점)
+        mcq=dict(values=[4.0, 3.0, 3.5, 4.5, 4.0, 3.0, 5.0, 3.0, 3.0, 3.5, 4.0, 2.5, 3.0, 3.5,
+                         2.5, 3.5, 3.0, 4.0, 3.5, 3.5, 3.5, 4.0, 4.5, 5.0, 4.0, 3.5, 3.5, 2.5], hard=[]),
+        families=["itm", "itm2"],
+        why="1·2컷만 확정, 평균 모름, 28문항 실제 배점 반영", est=[2, 3]),
     "2026-2mid-bio": dict(
         N=[116, 119, 117], cuts=[(94.8, .10), (81.6, .34), (64.3, .66)],
         counts=[(99.5, 1)], mean=69.7,
@@ -462,8 +538,11 @@ SPECS = {
     "2026-2mid-hwaeon": dict(
         N=227, cuts=[(75, .10)], counts=[(95, 1), (90, 3)],
         bands=[(70, 75, 8), (65, 70, 24), (45, 50, 38), (40, 45, 30)],
-        mcq=dict(n=26, sd=0.25), families=["mcq", "mcq2"],     # 26문항, 배점 3.4~4.2
-        why="1컷 확정 + 점수대 인원 6구간, 객관식 26문항 점수 구조 반영", est=[1, 2, 3]),
+        # 선택형 26문항 실제 배점 (3.4~4.2점, 합 100)
+        mcq=dict(values=[3.6, 3.8, 3.8, 3.9, 3.9, 3.7, 4.0, 4.2, 4.2, 3.9, 3.9, 4.2, 4.0, 4.1,
+                         4.1, 4.1, 4.1, 3.6, 3.8, 3.8, 3.5, 3.7, 3.8, 3.4, 3.5, 3.4], hard=[]),
+        families=["itm", "itm2"],
+        why="1컷 확정 + 점수대 인원 6구간, 26문항 실제 배점 반영", est=[1, 2, 3]),
 }
 
 
@@ -526,7 +605,8 @@ def main():
 def validate():
     """확정 컷을 하나씩 숨기고 나머지 사실로 맞혀 보기."""
     tests = [("2026-2mid-english", k) for k in range(4)] + [("2026-2mid-calc", k) for k in range(3)] + \
-            [("2026-2mid-bio", k) for k in range(3)]
+            [("2026-2mid-bio", k) for k in range(3)] + [("2026-2mid-hwaeon", 0)] + \
+            [("2026-2mid-chem", k) for k in range(2)]
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1].split(",")
         tests = [t for t in tests if t[0] in only]

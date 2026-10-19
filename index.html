@@ -503,7 +503,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 
   fetch("cuts.json", { cache: "no-store" }).then(r => r.json()).then(j => {
     docs = j.subjects || [];
-    if (j.validation) $("validation").textContent = `계산 방법 검증: 이미 아는 실제 컷 ${j.validation.total}개를 하나씩 숨기고 나머지 정보로 맞혀 봤더니 ${j.validation.coverage}개가 90% 범위 안에 들어왔어요 (평균 오차 ${j.validation.mae}점).`;
+    if (j.validation) $("validation").textContent = `계산 방법 검증: 이미 아는 실제 컷 ${j.validation.total}개를 하나씩 숨기고 나머지 정보로 맞혀 봤더니 ${j.validation.coverage}개가 90% 범위 안에 들어왔어요 (평균 오차 ${j.validation.mae}점).` + (j.validation.note ? " " + j.validation.note : "");
     const when = fmt(j.updated);
     $("asof").textContent = when ? `${when} 기준 등급컷` : "등급컷 기준 시각 미정";
     $("updated").textContent = when ? `마지막 업데이트 ${when} (한국 시간)` : "";
