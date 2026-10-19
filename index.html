@@ -282,6 +282,14 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   function rankOf(d) {
     const m = parse(d.my); if (!m) return null;
     const N = parseFloat(d.n) || 0;
+    // 분포 모델 표: tab[점수] = 그 점수 이상인 사람 비율 (평균·컷·점수대 인원에 맞춰 미리 계산)
+    if (Array.isArray(d.tab) && d.tab.length === 101) {
+      const x = Math.max(0, Math.min(100, m.n));
+      if (d.tab_min && x < d.tab_min) return { below: true, frac: d.tab[Math.round(d.tab_min)], N, model: true };
+      const lo = Math.floor(x), hi = Math.min(100, lo + 1), t = x - lo;
+      const frac = d.tab[lo] * (1 - t) + d.tab[hi] * t;
+      return { frac, N, model: true, conf: d.rk_conf, rank: N ? Math.max(1, Math.round(frac * N)) : null };
+    }
     const pts = [[100, 0]];
     const fr = [0.10, 0.34, 0.66, 0.90];
     let est = false, lowest = null;
@@ -304,7 +312,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const r = rankOf(d); if (!r) return "";
     const pct = Math.max(0.1, r.frac * 100);
     const pctTxt = pct < 10 ? pct.toFixed(1) : Math.round(pct);
-    const tip = "컷과 알려진 인원 사이를 직선으로 이어서 계산한 추정 석차예요." + (r.est ? " 추정 컷이 섞여 있어서 오차가 더 클 수 있어요." : "");
+    const tip = r.model
+      ? `평균·컷·점수대 인원을 모두 맞추는 점수 분포 모델로 계산한 추정 석차예요.${r.conf ? " 신뢰도: " + r.conf + "." : ""} 동점자 처리 때문에 실제와 몇 등 차이 날 수 있어요.`
+      : "컷과 알려진 인원 사이를 직선으로 이어서 계산한 추정 석차예요." + (r.est ? " 추정 컷이 섞여 있어서 오차가 더 클 수 있어요." : "");
     const txt = r.below ? `상위 ${Math.round(r.frac * 100)}% 밖`
       : r.rank ? `약 ${r.rank}등/${r.N} · 상위 ${pctTxt}%` : `상위 약 ${pctTxt}%`;
     return `<span class="rk est" tabindex="0" data-tip="${esc(tip)}">${txt}</span>`;
