@@ -144,6 +144,13 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 .asof{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-size:.8rem;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--rule);color:var(--ink);margin:6px 0 0;font-variant-numeric:tabular-nums}
 .asof::before{content:"";width:7px;height:7px;border-radius:50%;background:#2fb36b}
 .rowat{grid-column:1/-1;font-size:.72rem;color:var(--muted);margin:0;font-variant-numeric:tabular-nums}
+[data-tip]{position:relative;cursor:help}
+[data-tip]:focus{outline:none}
+[data-tip]:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+[data-tip]:hover::before,[data-tip]:focus::before{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:0;width:max-content;max-width:190px;white-space:normal;background:var(--ink);color:var(--bg);font:500 .72rem/1.45 var(--sans);letter-spacing:0;text-align:left;padding:7px 10px;border-radius:7px;z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
+[data-tip].tr:hover::before,[data-tip].tr:focus::before{left:auto;right:0}
+.cell b.unsure{text-decoration:underline dotted var(--omr);text-underline-offset:3px}
+.sheet{overflow:visible}
 .alias{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:4px}
 @media (prefers-reduced-motion:no-preference){.chip,.icon{transition:background .15s,border-color .15s}}
 </style>
@@ -239,7 +246,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const c1 = parse((d.c || [])[0]);
       const gap = c1 && !(d.c?.[0] || "").includes("↑") ? (m.n - c1.n) : null;
       const gapTxt = gap === null ? "" : ` · 1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
-      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
+      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u ? ` tabindex="0" data-tip="${useG(d) ? "공식 컷은 아직 없지만, 점수로 보면 거의 확실한 등급이에요." : "추정한 컷 기준이라 실제 컷이 나오면 바뀔 수 있어요."}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
     }).join("");
     const chips = Object.keys(counts).sort().map(k => `<span class="c${k}">${k}등급 ${counts[k]}과목</span>`).join("");
     return `<div class="sum-head"><div class="sum-avg">${wavg
@@ -252,15 +259,15 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     if (!m) return `<div class="gb none"><b>—</b><i>점수 입력</i></div>`;
     if (useG(d)) {
       const u = String(d.g).includes("?"), n = String(d.g).replace("?", "");
-      return `<div class="gb g${esc(n)}${u ? " part" : ""}"><b>${esc(n)}</b><i>${u ? "거의 확정" : "등급"}</i></div>`;
+      return `<div class="gb g${esc(n)}${u ? " part" : ""}"${u ? ` tabindex="0" data-tip="공식 컷은 아직 없지만, 점수로 보면 거의 확실한 등급이에요."` : ""}><b>${esc(n)}</b><i>${u ? "거의 확정" : "등급"}</i></div>`;
     }
     const cuts = d.c || [];
     for (let i = 0; i < 4; i++) {
       const c = parse(cuts[i]);
       if (!c) return i === 0
         ? `<div class="gb none"><b>?</b><i>컷 대기</i></div>`
-        : `<div class="gb g${i + 1} part"><b>${i + 1}↓</b><i>등급 이하</i></div>`;
-      if (m.n >= c.n) return `<div class="gb g${i + 1}${c.unsure ? " part" : ""}"><b>${i + 1}</b><i>등급${c.unsure ? "?" : ""}</i></div>`;
+        : `<div class="gb g${i + 1} part" tabindex="0" data-tip="아랫 컷이 아직 없어서 몇 등급 이하인지까지만 알 수 있어요."><b>${i + 1}↓</b><i>등급 이하</i></div>`;
+      if (m.n >= c.n) return `<div class="gb g${i + 1}${c.unsure ? " part" : ""}"${c.unsure ? ` tabindex="0" data-tip="추정한 컷 기준이라 실제 컷이 나오면 바뀔 수 있어요."` : ""}><b>${i + 1}</b><i>등급${c.unsure ? "?" : ""}</i></div>`;
     }
     return `<div class="gb g5"><b>5</b><i>등급</i></div>`;
   }
@@ -317,7 +324,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const noCut = !cuts.some(v => String(v || "").trim());
       const cells = noCut ? `<div class="nocut">아직 등급컷이 없어요</div>` : [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]);
-        return `<div class="cell"><i>${i + 1}컷</i>${p ? `<b class="${p.unsure ? "unsure" : ""}">${esc(p.raw)}</b>` : `<b class="none">—</b>`}</div>`;
+        return `<div class="cell"><i>${i + 1}컷</i>${p ? (p.unsure
+          ? `<b class="unsure${i >= 2 ? " tr" : ""}" tabindex="0" data-tip="${esc("추정치예요. 아직 확정된 컷이 아니에요." + (d.note ? " (" + d.note + ")" : ""))}">${esc(p.raw)}</b>`
+          : `<b>${esc(p.raw)}</b>`) : `<b class="none">—</b>`}</div>`;
       }).join("");
       const myP = parse(d.my);
       const me = `<div class="cell me"><i>내 점수</i><input class="myin" id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수" value="${esc(d.my)}"></div>`;
