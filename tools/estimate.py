@@ -174,6 +174,13 @@ class Model:
     def top_quantile(self, q):            # 위에서 q 비율 지점의 점수
         return float(self.inv(1 - q))
 
+    def peaks_in(self, ranges):
+        """밀도 봉우리가 각 점수 구간 안에 하나씩 있는지 (예: 30~40, 70~80)."""
+        d = np.convolve(self.dens, np.ones(9) / 9, mode="same")
+        idx = np.where((d[1:-1] >= d[:-2]) & (d[1:-1] > d[2:]) & (d[1:-1] > 1e-4))[0] + 1
+        xs = self.mids[idx]
+        return all(((xs >= a) & (xs <= b)).any() for a, b in ranges)
+
     def bimodal(self):
         d = np.convolve(self.dens, np.ones(9) / 9, mode="same")
         idx = np.where((d[1:-1] >= d[:-2]) & (d[1:-1] > d[2:]) & (d[1:-1] > 1e-4))[0] + 1
@@ -272,6 +279,8 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
         return -np.inf
     if spec.get("bimodal") and not m.bimodal():
         return -np.inf
+    if spec.get("peaks") and not m.peaks_in(spec["peaks"]):
+        return -np.inf
     L = 0.0
     for p in pieces:                                      # 고정 인원 구간
         if p["g"] is None and p["n"]:
@@ -319,6 +328,10 @@ def run_family(spec, fam, n_keep=300, iters=6000, chains=6, quiet=False):
         th = lo + RNG.random(len(lo)) * (hi - lo)
         if fam == "mix2" and th[1] <= th[3]:
             th[1], th[3] = th[3] + 1, th[1]
+        if fam == "mix2" and spec.get("peaks"):          # 봉우리 위치 근처에서 시작
+            (a1, b1), (a2, b2) = sorted(spec["peaks"], reverse=True)
+            th[1], th[3] = RNG.uniform(a1, b1), RNG.uniform(a2, b2)
+            th[2], th[4] = RNG.uniform(3, 12), RNG.uniform(3, 12)
         if fam in ("mcq2", "irt2", "itm2") and th[1] / (th[1] + th[2]) >= th[3] / (th[3] + th[4]):
             th[1:3], th[3:5] = th[3:5].copy(), th[1:3].copy()
         v = f(th)
@@ -533,8 +546,8 @@ SPECS = {
         N=[116, 119, 117], counts=[(90, 6), (80, 17)], mean=50.9,
         splits=[85, 60], cond_min=[(85, 90, 11, 6)], cond_seg_lo=80,
         cond_max=[(60, 80, 0, 80, 0.34, 17)],      # '1·2컷 갭이 크다' → 2컷 60점 이하
-        bimodal=True, families=["mix2"],
-        why="90점 이상 6명·80점대 11명·평균 확정, 1컷 80 중후반·쌍봉·1·2컷 갭 큼(2컷 60 이하, 선생님 말씀 해석)", est=[0, 1, 2, 3]),
+        bimodal=True, peaks=[(70, 80), (30, 40)], families=["mix2"],   # 선생님: 봉우리 30~40, 70~80
+        why="90점 이상 6명·80점대 11명·평균 확정, 1컷 80 중후반·쌍봉(봉우리 30~40·70~80)·1·2컷 갭 큼(2컷 60 이하, 선생님 말씀 해석)", est=[0, 1, 2, 3]),
     "2026-2mid-hwaeon": dict(
         N=227, cuts=[(75, .10)], counts=[(95, 1), (90, 3)],
         bands=[(70, 75, 8), (65, 70, 24), (45, 50, 38), (40, 45, 30)],
