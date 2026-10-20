@@ -37,8 +37,10 @@ FAMILIES = {
     # 객관식 + 두 무리(혼합): w, a1, b1, a2, b2
     "mcq2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1], hi=[0.95, 80, 80, 80, 80]),
     # 문항별 배점 + '어려운 문항' 반영: 실력 p~Beta(a,b), 어려운 문항 정답률 = logit(p) - d
-    "irt": dict(lo=[0.1, 0.1, 0.3], hi=[80, 80, 5]),
-    "irt2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1, 0.3], hi=[0.95, 80, 80, 80, 80, 5]),
+    # d는 0.3~1.5로 제한: 1.5면 일반 문항 90% 맞히는 학생이 어려운 문항은 67%, 50%인 학생은 18%
+    # (예전엔 5까지 허용 → '거의 아무도 못 맞힘'까지 가능해서 검증에서 크게 틀렸음)
+    "irt": dict(lo=[0.1, 0.1, 0.3], hi=[80, 80, 1.5]),
+    "irt2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1, 0.3], hi=[0.95, 80, 80, 80, 80, 1.5]),
     # 문항별 배점만 반영 (어려운 문항 정보 없음)
     "itm": dict(lo=[0.1, 0.1], hi=[80, 80]),
     "itm2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1], hi=[0.95, 80, 80, 80, 80]),
@@ -174,15 +176,23 @@ class Model:
     def top_quantile(self, q):            # 위에서 q 비율 지점의 점수
         return float(self.inv(1 - q))
 
+    def shape_dens(self):
+        """봉우리 판단용 밀도. 문항 배점 모형은 점수가 띄엄띄엄(약 4점 간격)이라
+        그대로 두면 점수마다 뾰족한 봉우리가 생김 → 2.5점 폭으로 부드럽게 편 뒤 판단."""
+        if self.fam in ("mcq", "mcq2", "irt", "irt2", "itm", "itm2"):
+            k = np.exp(-0.5 * (np.arange(-150, 151) * (FINE[1] - FINE[0]) / 2.5) ** 2)
+            return np.convolve(self.dens, k / k.sum(), mode="same")
+        return np.convolve(self.dens, np.ones(9) / 9, mode="same")
+
     def peaks_in(self, ranges):
         """밀도 봉우리가 각 점수 구간 안에 하나씩 있는지 (예: 30~40, 70~80)."""
-        d = np.convolve(self.dens, np.ones(9) / 9, mode="same")
+        d = self.shape_dens()
         idx = np.where((d[1:-1] >= d[:-2]) & (d[1:-1] > d[2:]) & (d[1:-1] > 1e-4))[0] + 1
         xs = self.mids[idx]
         return all(((xs >= a) & (xs <= b)).any() for a, b in ranges)
 
     def bimodal(self):
-        d = np.convolve(self.dens, np.ones(9) / 9, mode="same")
+        d = self.shape_dens()
         idx = np.where((d[1:-1] >= d[:-2]) & (d[1:-1] > d[2:]) & (d[1:-1] > 1e-4))[0] + 1
         peaks = list(idx)
         if len(peaks) < 2:
@@ -324,7 +334,9 @@ def run_family(spec, fam, n_keep=300, iters=6000, chains=6, quiet=False):
     f = lambda th: loglik(spec, fam, th, N, anchors, pieces, groups)
     # 시작점: 사전분포에서 무작위로 뽑아 국소 최적화
     starts = []
-    for _ in range(60):
+    tries = 0
+    while tries < 60 or (len(starts) < 12 and tries < 900):   # 조건이 까다로우면 시작점을 더 뽑음
+        tries += 1
         th = lo + RNG.random(len(lo)) * (hi - lo)
         if fam == "mix2" and th[1] <= th[3]:
             th[1], th[3] = th[3] + 1, th[1]
@@ -332,6 +344,11 @@ def run_family(spec, fam, n_keep=300, iters=6000, chains=6, quiet=False):
             (a1, b1), (a2, b2) = sorted(spec["peaks"], reverse=True)
             th[1], th[3] = RNG.uniform(a1, b1), RNG.uniform(a2, b2)
             th[2], th[4] = RNG.uniform(3, 12), RNG.uniform(3, 12)
+        if fam in ("itm2", "irt2") and spec.get("peaks"):   # 두 무리의 실력(정답률)을 봉우리 근처로
+            (a2, b2), (a1, b1) = sorted(spec["peaks"], reverse=True)   # 1번 무리 = 낮은 쪽
+            m1, m2 = RNG.uniform(a1, b1 + 8) / 100, RNG.uniform(a2, b2 + 8) / 100
+            k1, k2 = RNG.uniform(8, 60), RNG.uniform(8, 60)
+            th[1], th[2], th[3], th[4] = m1 * k1, (1 - m1) * k1, m2 * k2, (1 - m2) * k2
         if fam in ("mcq2", "irt2", "itm2") and th[1] / (th[1] + th[2]) >= th[3] / (th[3] + th[4]):
             th[1:3], th[3:5] = th[3:5].copy(), th[1:3].copy()
         v = f(th)
@@ -518,8 +535,9 @@ SPECS = {
         cuts=[(91.9, .10), (76.2, .34), (53, .66), (29.8, .90)],
         counts=[(95.5, [16, 20]), (10.2, "N")],   # 1개 틀림 16~17명 + 만점 0~3명, 최저점 10.2
         # 선택형 26문항 실제 배점.
-        # 11·25·26번(외부 지문)을 더 어렵게 두는 모형(irt, hard=[11,25,26])도 만들어 봤지만
-        # 숨긴 컷 맞히기에서 4개 중 1개만 범위 안(평균 오차 7.9점)이라 쓰지 않음
+        # 11·25·26번(외부 지문)을 더 어렵게 두는 모형(irt, hard=[11,25,26]) 검증 결과:
+        #   난도 차이를 크게(d≤5) 허용 → 4개 중 1개만 범위 안(평균 오차 7.9점)
+        #   현실적인 범위(d≤1.5)로 제한 → 4개 중 4개(평균 오차 2.2점) = 안 쓴 것(2.1점)과 같음 → 영어는 그대로
         mcq=dict(values=[3.8, 3.5, 3.5, 3.8, 3.3, 3.3, 4.2, 4.1, 4.3, 4.1, 3.9, 3.5, 4.2, 4.3, 3.8, 3.7, 3.6,
                          3.7, 3.9, 3.5, 4.1, 3.9, 3.7, 3.8, 4.2, 4.3], hard=[]),
         families=["itm", "itm2"],
@@ -546,8 +564,14 @@ SPECS = {
         N=[116, 119, 117], counts=[(90, 6), (80, 17)], mean=50.9,
         splits=[85, 60], cond_min=[(85, 90, 11, 6)], cond_seg_lo=80,
         cond_max=[(60, 80, 0, 80, 0.34, 17)],      # '1·2컷 갭이 크다' → 2컷 60점 이하
-        bimodal=True, peaks=[(70, 80), (30, 40)], families=["mix2"],   # 선생님: 봉우리 30~40, 70~80
-        why="90점 이상 6명·80점대 11명·평균 확정, 1컷 80 중후반·쌍봉(봉우리 30~40·70~80)·1·2컷 갭 큼(2컷 60 이하, 선생님 말씀 해석)", est=[0, 1, 2, 3]),
+        bimodal=True, peaks=[(70, 80), (30, 40)],  # 선생님: 쌍봉, 봉우리 30~40·70~80
+        # 선택형 20문항(80점) + 서답형 5문항(20점 = 21~25번) 실제 배점. 서답형이 더 어려움(사용자 말)
+        # → 서답형 난도 반영(irt2)과 미반영(itm2)을 함께 씀 (둘 다 사실과 맞는 정도 같음)
+        mcq=dict(values=[3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 4.2, 4.5, 4.2, 4.2, 4.2, 3.5, 4.2, 4.2, 4.5, 4.2, 4.2,
+                         4.5, 4.2, 4.2, 3.5, 4.5, 3.8, 4.5, 3.7], hard=[21, 22, 23, 24, 25]),
+        families=["itm2", "irt2"],
+        why="90점 이상 6명·80점대 11명·평균 확정 + 선생님 말씀(1컷 80 중후반, 쌍봉 30~40·70~80, 1·2컷 갭 큼→2컷 60 이하) + 25문항 실제 배점(서답형 어려움)",
+        est=[0, 1, 2, 3]),
     "2026-2mid-hwaeon": dict(
         N=227, cuts=[(75, .10)], counts=[(95, 1), (90, 3)],
         bands=[(70, 75, 8), (65, 70, 24), (45, 50, 38), (40, 45, 30)],
