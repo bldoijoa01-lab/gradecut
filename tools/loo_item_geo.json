@@ -1,0 +1,32 @@
+[
+ {
+  "subject": "2026-2mid-geometry",
+  "kind": "item",
+  "cut": 1,
+  "actual": 88.5,
+  "pred": 81.0,
+  "lo": 75.9,
+  "hi": 95.0,
+  "inside": true,
+  "err": -7.5,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ },
+ {
+  "subject": "2026-2mid-geometry",
+  "kind": "item",
+  "cut": 2,
+  "actual": 67,
+  "pred": 69.9,
+  "lo": 54.9,
+  "hi": 76.8,
+  "inside": true,
+  "err": 2.9,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ }
+]

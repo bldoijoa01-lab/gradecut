@@ -1,0 +1,47 @@
+[
+ {
+  "subject": "2026-2mid-calc",
+  "kind": "item",
+  "cut": 1,
+  "actual": 88.4,
+  "pred": 80.8,
+  "lo": 79.0,
+  "hi": 90.8,
+  "inside": true,
+  "err": -7.6,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ },
+ {
+  "subject": "2026-2mid-calc",
+  "kind": "item",
+  "cut": 2,
+  "actual": 68.5,
+  "pred": 71.0,
+  "lo": 65.0,
+  "hi": 78.5,
+  "inside": true,
+  "err": 2.5,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ },
+ {
+  "subject": "2026-2mid-calc",
+  "kind": "item",
+  "cut": 3,
+  "actual": 51,
+  "pred": 45.0,
+  "lo": 15.8,
+  "hi": 54.5,
+  "inside": true,
+  "err": -6.0,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ }
+]
