@@ -357,13 +357,13 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const [lv, cls] = w <= CONF_HI ? ["높음", "hi"] : w <= CONF_MID ? ["중간", "mid"] : ["낮음", "lo"];
       const tip = [
         `추정 석차 · 신뢰도 ${lv}`,
-        r.lo === r.hi ? `${r.lo}등으로 확정에 가까워요` : `90% 범위: ${r.lo}~${r.hi}등 (10번 중 9번은 이 안)`,
+        r.lo === r.hi ? `${r.lo}등 확정 (같은 점수인 사람과는 공동 ${r.lo}등)` : `90% 범위: ${r.lo}~${r.hi}등 (10번 중 9번은 이 안)`,
         `범위 폭: 전체 ${r.N}명의 ${Math.round(w * 100)}%`,
         r.gp ? gradeProbText(r.gp) : "",
         `계산: 사실과 맞는 분포 ${d.rk_models || "여러"}개 × 가상의 반 ${d.rk_sims || 40}개`,
         d.rk_why ? "근거: " + d.rk_why : ""
       ].filter(Boolean).join("\n");
-      return `<span class="rkwrap"><span class="rk">약 ${r.rank}등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span><span class="conf ${cls} tr" tabindex="0" data-tip="${esc(tip)}">${lv}</span></span>`;
+      return `<span class="rkwrap"><span class="rk">${r.lo === r.hi ? "" : "약 "}${r.rank}등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span><span class="conf ${cls} tr" tabindex="0" data-tip="${esc(tip)}">${lv}</span></span>`;
     }
     const m = parse(d.my);
     let lv = d.rk_conf || (r.est ? "낮음" : "중간");

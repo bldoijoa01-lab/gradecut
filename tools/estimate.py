@@ -465,6 +465,17 @@ def allocate(rng, total, probs, D, cond=None, plus=None):
     return out
 
 
+def achievable_scores(values):
+    """문항 배점(0.1점 단위)으로 실제로 나올 수 있는 모든 점수 (오름차순)."""
+    vs = [int(round(v * 10)) for v in values]
+    reach = np.zeros(sum(vs) + 1, bool)
+    reach[0] = True
+    for v in vs:
+        prev = reach.copy()
+        reach[v:] |= prev[:-v]
+    return np.round(np.sort(1000 - np.nonzero(reach)[0]) / 10.0, 1)
+
+
 def xgrid(spec):
     N, anchors = realize_spec(spec, RNG, fixed=True)
     pts = set(np.round(GRID, 2).tolist())
@@ -475,6 +486,10 @@ def xgrid(spec):
     for e in edges:
         if 0 < e < 100:
             pts.add(round(e, 2)); pts.add(round(e - 0.05, 2))
+    if "discrete" in spec:                      # 상위권은 실제로 나올 수 있는 점수마다 석차 계산
+        for a in achievable_scores(spec["discrete"]["values"]):
+            if a >= 85:
+                pts.add(round(float(a), 2))
     return np.array(sorted(pts))
 
 
@@ -482,6 +497,17 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
     CTX.clear(); CTX.update(spec.get("mcq", {}))
     rng = np.random.default_rng(seed)
     X = xgrid(spec)
+    disc = spec.get("discrete")
+    if disc:
+        # 동점은 같은 등수: 내 위 = '내 점수보다 높은, 실제로 나올 수 있는 다음 점수' 이상인 사람.
+        # 연속 분포의 점수는 그 아래 가능한 점수로 내림 → 100점 기준선은 만점자 수를 아는 경계(top, 예 99.5)
+        A = achievable_scores(disc["values"])
+        T = np.where(A >= 100 - 1e-9, disc["top"], A)
+        def disc_next(x):
+            if x >= disc["top"] - 1e-9:
+                return None
+            i = int(np.searchsorted(A, x + 1e-6, side="right"))
+            return None if i >= len(A) else float(T[i])
     ranks, grades, Ns = [], [], []
     cut_samples = {k: [] for k in want_cuts}
     for fam, th in members:
@@ -547,8 +573,25 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
                     cnt[:, g["idx"]] = al
                     above = (np.cumsum(cnt, axis=1) - cnt)[:, p_i]
                     others = al[:, jj] - 1
-            within = rng.binomial(others[:, None], t[None, :])
-            rx[:, sel] = np.minimum(above[:, None] + within + 1, N)
+            if not disc:
+                within = rng.binomial(others[:, None], t[None, :])
+                rx[:, sel] = np.minimum(above[:, None] + within + 1, N)
+                continue
+            cnt_u = base if (p["g"] is None or groups[p["g"]]["total"] < 1) else cnt
+            above_all = np.cumsum(cnt_u, axis=1) - cnt_u
+            for ci, x in zip(np.where(sel)[0], xs):
+                y = disc_next(float(x))
+                if y is None:
+                    rx[:, ci] = 1
+                    continue
+                q = next(i for i, pp in enumerate(pieces)
+                         if pp["lo"] - 1e-9 <= y and (y < pp["hi"] - 1e-9 or pp["hi"] >= 100))
+                pq, mq = pieces[q], mass[q]
+                tq = float(np.clip((m.F(min(pq["hi"], 100)) - m.F(y)) / mq, 0, 1)) if mq > 0 else 0.5
+                if q == p_i:
+                    rx[:, ci] = np.minimum(above + rng.binomial(others, tq) + 1, N)
+                else:
+                    rx[:, ci] = np.minimum(above_all[:, q] + rng.binomial(cnt_u[:, q], tq) + 1, N)
         ranks.append(rx)
         gr = 1 + sum((rx > r).astype(np.int8) for r in R)
         grades.append(gr)
@@ -605,11 +648,14 @@ SPECS = {
         N=[116, 119, 117], cuts=[(96, .10), (79, .34)], mean=64.1,
         counts=[(99.5, 3)],                         # 100점 3명 (다음 점수는 97.5점부터)
         splits=[90, 80], cond_cmp=[(90, 99.5, 80, 90)],   # 90점대(90~99점) 인원 > 80점대 인원
+        # 석차는 실제로 나올 수 있는 점수 기준 (100점 다음은 97.5점, 100점 3명은 확정)
+        discrete=dict(values=[4.0, 3.0, 3.5, 4.5, 4.0, 3.0, 5.0, 3.0, 3.0, 3.5, 4.0, 2.5, 3.0, 3.5,
+                              2.5, 3.5, 3.0, 4.0, 3.5, 3.5, 3.5, 4.0, 4.5, 5.0, 4.0, 3.5, 3.5, 2.5], top=99.5),
         # 실제 배점: 선택형 28문항 (2.5~5.0점)
         #   [4.0, 3.0, 3.5, 4.5, 4.0, 3.0, 5.0, 3.0, 3.0, 3.5, 4.0, 2.5, 3.0, 3.5,
         #    2.5, 3.5, 3.0, 4.0, 3.5, 3.5, 3.5, 4.0, 4.5, 5.0, 4.0, 3.5, 3.5, 2.5]
         # 숨긴 컷 맞히기: 문항 배점 모형 2/2(평균 오차 9.1점) vs 연속 분포 모형 2/2(6.6점) → 연속 분포
-        why="1·2컷 확정 + 평균 + 만점자 3명 + 90점대가 80점대보다 많음", est=[2, 3]),
+        why="1·2컷 확정 + 평균 + 만점자 3명 + 90점대가 80점대보다 많음 · 석차는 실제로 나올 수 있는 점수 기준(동점은 같은 등수)", est=[2, 3]),
     "2026-2mid-bio": dict(
         N=[116, 119, 117], cuts=[(94.8, .10), (81.6, .34), (64.3, .66)],
         counts=[(99.5, 1)], mean=69.7,
@@ -618,7 +664,10 @@ SPECS = {
         #    3.5, 3.4, 2.9, 3.4, 3.1, 4] + [2.0] * 10
         # 문항 배점 모형(itm/itm2)으로 숨긴 컷 맞히기 → 2/3(평균 오차 3.1점, 1컷 94.8을 91.5로 예측해 범위 밖)
         # 지금의 연속 분포 모형은 3/3(평균 오차 1.4점) → 생명은 연속 분포 모형 유지
-        why="1~3컷 확정 + 평균 + 만점자 수", est=[3]),
+        # 석차는 실제로 나올 수 있는 점수 기준 (100점 다음은 98점, 100점 1명은 확정)
+        discrete=dict(values=[2.9, 3, 3.1, 3.3, 3.2, 3.6, 3.5, 3.6, 3.8, 2.9, 3.3, 3.7, 4, 3.4, 3.1, 3, 3, 3.3,
+                              3.5, 3.4, 2.9, 3.4, 3.1, 4] + [2.0] * 10, top=99.5),
+        why="1~3컷 확정 + 평균 + 만점자 수 · 석차는 실제로 나올 수 있는 점수 기준(동점은 같은 등수)", est=[3]),
     "2026-2mid-physics": dict(
         N=[116, 119, 117], counts=[(90, 6), (80, 17)], mean=50.9,
         splits=[85, 60], cond_min=[(85, 90, 11, 6)], cond_seg_lo=80,
