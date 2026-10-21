@@ -1,0 +1,32 @@
+[
+ {
+  "subject": "2026-2mid-chem",
+  "kind": "item",
+  "cut": 1,
+  "actual": 96,
+  "pred": 94.4,
+  "lo": 92.9,
+  "hi": 96.3,
+  "inside": true,
+  "err": -1.6,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ },
+ {
+  "subject": "2026-2mid-chem",
+  "kind": "item",
+  "cut": 2,
+  "actual": 79,
+  "pred": 80.9,
+  "lo": 67.6,
+  "hi": 89.4,
+  "inside": true,
+  "err": 1.9,
+  "fams": [
+   "itm",
+   "itm2"
+  ]
+ }
+]

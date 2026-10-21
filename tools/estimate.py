@@ -17,7 +17,7 @@ python3 estimate.py --validate -> 확정 컷을 하나씩 숨기고 맞혀 보�
 """
 import json, sys, math
 import numpy as np
-from scipy import special, optimize
+from scipy import special, optimize, stats
 
 RNG = np.random.default_rng(20261019)
 Q = [0.10, 0.34, 0.66, 0.90]
@@ -313,6 +313,8 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
         n_seg = next(g["total"] for g in groups if any(abs(pieces[i]["lo"] - a) < 1e-9 for i in g["idx"]))
         p_in = float(m.mass(a, b)) / max(float(m.mass(slo, shi)), 1e-300)
         L += math.log(max(_binom_cdf(k, n_seg, p_in), 1e-300))
+    for alo, ahi, blo, bhi in spec.get("cond_cmp", []):   # 예: 90점대 인원 > 80점대 인원
+        L += math.log(max(_cmp_prob(m, alo, ahi, blo, bhi, pieces, groups), 1e-300))
     return L
 
 
@@ -324,6 +326,39 @@ def _binom_cdf(k, n, p):
     if k < 0:
         return 0.0
     return float(special.bdtr(k, n, min(max(p, 0.0), 1.0)))
+
+
+def _cmp_parts(lo, hi, pieces):
+    """[lo, hi) 안에 완전히 들어가는 구간들: 고정 인원 합, 그룹(합계만 앎) 구간 번호."""
+    fixed, idx = 0, []
+    for i, p in enumerate(pieces):
+        if p["lo"] >= lo - 1e-9 and p["hi"] <= hi + 1e-9:
+            if p["g"] is None:
+                fixed += p["n"]
+            else:
+                idx.append(i)
+    return fixed, idx
+
+
+def _cmp_prob(m, alo, ahi, blo, bhi, pieces, groups):
+    """P( [alo,ahi) 인원 > [blo,bhi) 인원 ). 모르는 인원은 한 그룹 안에서 다항분포로 나뉨."""
+    FA, ia = _cmp_parts(alo, ahi, pieces)
+    FB, ib = _cmp_parts(blo, bhi, pieces)
+    gs = {pieces[i]["g"] for i in ia + ib}
+    if not gs:
+        return 1.0 if FA > FB else 0.0
+    assert len(gs) == 1, "비교 조건의 모르는 인원은 한 그룹 안에 있어야 함"
+    g = groups[gs.pop()]
+    n = g["total"]
+    mass = lambda ids: sum(float(m.mass(pieces[i]["lo"], pieces[i]["hi"])) for i in ids)
+    tot = max(mass(g["idx"]), 1e-300)
+    pA, pB = mass(ia) / tot, mass(ib) / tot
+    x = np.arange(n + 1)
+    px = stats.binom.pmf(x, n, min(pA, 1.0))
+    q = min(pB / max(1 - pA, 1e-12), 1.0)
+    # FA + X > FB + Y  ⇔  Y <= FA + X - FB - 1,  Y | X ~ Bin(n - X, q)
+    cy = stats.binom.cdf(FA + x - FB - 1, n - x, q)
+    return float(np.sum(px * cy))
 
 
 # ------------------------------------------------------------ MCMC
@@ -467,6 +502,16 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
                         f = (lambda jj, k: (lambda out: out[:, jj] >= k))(jj, k) if op == ">=" else \
                             (lambda jj, k: (lambda out: out[:, jj] <= k))(jj, k)
                         conds.setdefault(gi, []).append(f)
+        for alo, ahi, blo, bhi in spec.get("cond_cmp", []):
+            FA, ia = _cmp_parts(alo, ahi, pieces)
+            FB, ib = _cmp_parts(blo, bhi, pieces)
+            if not ia + ib:
+                continue
+            gi = pieces[(ia + ib)[0]]["g"]
+            ja = [groups[gi]["idx"].index(i) for i in ia]
+            jb = [groups[gi]["idx"].index(i) for i in ib]
+            conds.setdefault(gi, []).append(
+                (lambda ja, jb, FA, FB: (lambda out: FA + out[:, ja].sum(axis=1) > FB + out[:, jb].sum(axis=1)))(ja, jb, FA, FB))
         cond_by_group = {gi: (lambda fs: (lambda out: np.logical_and.reduce([f(out) for f in fs])))(fs)
                          for gi, fs in conds.items()}
         # 본인 없이 채운 기본 배정
@@ -558,11 +603,13 @@ SPECS = {
         why="1·2컷 확정, 3·4컷은 친구 추정값(48·26)을 약하게 반영", est=[2, 3]),
     "2026-2mid-chem": dict(
         N=[116, 119, 117], cuts=[(96, .10), (79, .34)], mean=64.1,
+        counts=[(99.5, 3)],                         # 100점 3명 (다음 점수는 97.5점부터)
+        splits=[90, 80], cond_cmp=[(90, 99.5, 80, 90)],   # 90점대(90~99점) 인원 > 80점대 인원
         # 실제 배점: 선택형 28문항 (2.5~5.0점)
         #   [4.0, 3.0, 3.5, 4.5, 4.0, 3.0, 5.0, 3.0, 3.0, 3.5, 4.0, 2.5, 3.0, 3.5,
         #    2.5, 3.5, 3.0, 4.0, 3.5, 3.5, 3.5, 4.0, 4.5, 5.0, 4.0, 3.5, 3.5, 2.5]
         # 숨긴 컷 맞히기: 문항 배점 모형 2/2(평균 오차 9.1점) vs 연속 분포 모형 2/2(6.6점) → 연속 분포
-        why="1·2컷 확정 + 평균", est=[2, 3]),
+        why="1·2컷 확정 + 평균 + 만점자 3명 + 90점대가 80점대보다 많음", est=[2, 3]),
     "2026-2mid-bio": dict(
         N=[116, 119, 117], cuts=[(94.8, .10), (81.6, .34), (64.3, .66)],
         counts=[(99.5, 1)], mean=69.7,
