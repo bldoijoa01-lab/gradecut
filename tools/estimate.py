@@ -341,24 +341,36 @@ def _cmp_parts(lo, hi, pieces):
 
 
 def _cmp_prob(m, alo, ahi, blo, bhi, pieces, groups):
-    """P( [alo,ahi) 인원 > [blo,bhi) 인원 ). 모르는 인원은 한 그룹 안에서 다항분포로 나뉨."""
+    """P( [alo,ahi) 인원 > [blo,bhi) 인원 ). 모르는 인원은 그룹 안에서 다항분포로 나뉨.
+    두 쪽이 같은 그룹이면 다항분포, 다른 그룹이면 서로 독립인 이항분포로 계산."""
     FA, ia = _cmp_parts(alo, ahi, pieces)
     FB, ib = _cmp_parts(blo, bhi, pieces)
-    gs = {pieces[i]["g"] for i in ia + ib}
-    if not gs:
+    ga = {pieces[i]["g"] for i in ia}
+    gb = {pieces[i]["g"] for i in ib}
+    assert len(ga) <= 1 and len(gb) <= 1, "비교 조건의 한쪽은 한 그룹 안에 있어야 함"
+    if not ga and not gb:
         return 1.0 if FA > FB else 0.0
-    assert len(gs) == 1, "비교 조건의 모르는 인원은 한 그룹 안에 있어야 함"
-    g = groups[gs.pop()]
-    n = g["total"]
     mass = lambda ids: sum(float(m.mass(pieces[i]["lo"], pieces[i]["hi"])) for i in ids)
-    tot = max(mass(g["idx"]), 1e-300)
-    pA, pB = mass(ia) / tot, mass(ib) / tot
-    x = np.arange(n + 1)
-    px = stats.binom.pmf(x, n, min(pA, 1.0))
-    q = min(pB / max(1 - pA, 1e-12), 1.0)
-    # FA + X > FB + Y  ⇔  Y <= FA + X - FB - 1,  Y | X ~ Bin(n - X, q)
-    cy = stats.binom.cdf(FA + x - FB - 1, n - x, q)
-    return float(np.sum(px * cy))
+
+    def part(ids, gset):
+        if not gset:
+            return 0, 0.0
+        g = groups[next(iter(gset))]
+        return g["total"], min(mass(ids) / max(mass(g["idx"]), 1e-300), 1.0)
+
+    if ga and ga == gb:
+        n, pA = part(ia, ga)
+        _, pB = part(ib, gb)
+        x = np.arange(n + 1)
+        px = stats.binom.pmf(x, n, pA)
+        q = min(pB / max(1 - pA, 1e-12), 1.0)
+        # FA + X > FB + Y  ⇔  Y <= FA + X - FB - 1,  Y | X ~ Bin(n - X, q)
+        return float(np.sum(px * stats.binom.cdf(FA + x - FB - 1, n - x, q)))
+    nA, pA = part(ia, ga)
+    nB, pB = part(ib, gb)
+    x = np.arange(nA + 1)
+    px = stats.binom.pmf(x, nA, pA)
+    return float(np.sum(px * stats.binom.cdf(FA + x - FB - 1, nB, pB)))
 
 
 # ------------------------------------------------------------ MCMC
@@ -528,10 +540,14 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
                         f = (lambda jj, k: (lambda out: out[:, jj] >= k))(jj, k) if op == ">=" else \
                             (lambda jj, k: (lambda out: out[:, jj] <= k))(jj, k)
                         conds.setdefault(gi, []).append(f)
+        full_conds = []          # 그룹 여러 개에 걸친 비교 조건 (전체 배정 행렬에 대해 확인)
         for alo, ahi, blo, bhi in spec.get("cond_cmp", []):
             FA, ia = _cmp_parts(alo, ahi, pieces)
             FB, ib = _cmp_parts(blo, bhi, pieces)
             if not ia + ib:
+                continue
+            if len({pieces[i]["g"] for i in ia + ib}) > 1:
+                full_conds.append((lambda ia, ib, FA, FB: (lambda C: FA + C[:, ia].sum(axis=1) > FB + C[:, ib].sum(axis=1)))(ia, ib, FA, FB))
                 continue
             gi = pieces[(ia + ib)[0]]["g"]
             ja = [groups[gi]["idx"].index(i) for i in ia]
@@ -548,6 +564,14 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
         for gi, g in enumerate(groups):
             al = allocate(rng, g["total"], mass[g["idx"]], D, cond_by_group.get(gi))
             base[:, g["idx"]] = al
+        full_ok = (lambda C: np.logical_and.reduce([f(C) for f in full_conds])) if full_conds else None
+        if full_ok is not None:
+            for _ in range(200):
+                bad = np.where(~full_ok(base))[0]
+                if not len(bad):
+                    break
+                for gi, g in enumerate(groups):
+                    base[bad[:, None], g["idx"]] = allocate(rng, g["total"], mass[g["idx"]], len(bad), cond_by_group.get(gi))
         above0 = np.cumsum(base, axis=1) - base     # 각 구간 위쪽 인원
         # 점수 x별 등수
         rx = np.zeros((D, len(X)), np.int32)
@@ -571,6 +595,13 @@ def simulate(spec, members, D=40, want_cuts=(), seed=7):
                     al = allocate(rng, g["total"] - 1, mass[g["idx"]], D, cond_by_group.get(p["g"]), plus=jj)
                     cnt = base.copy()
                     cnt[:, g["idx"]] = al
+                    if full_ok is not None:
+                        for _ in range(200):
+                            bad = np.where(~full_ok(cnt))[0]
+                            if not len(bad):
+                                break
+                            cnt[bad[:, None], g["idx"]] = allocate(rng, g["total"] - 1, mass[g["idx"]], len(bad),
+                                                                   cond_by_group.get(p["g"]), plus=jj)
                     above = (np.cumsum(cnt, axis=1) - cnt)[:, p_i]
                     others = al[:, jj] - 1
             if not disc:
