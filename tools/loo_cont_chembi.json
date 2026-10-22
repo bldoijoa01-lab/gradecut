@@ -1,0 +1,31 @@
+[
+ {
+  "subject": "2026-2mid-chem",
+  "kind": "cont",
+  "cut": 1,
+  "actual": 96,
+  "pred": 96.5,
+  "lo": 94.3,
+  "hi": 98.3,
+  "inside": true,
+  "err": 0.5,
+  "fams": [
+   "beta",
+   "mix2"
+  ]
+ },
+ {
+  "subject": "2026-2mid-chem",
+  "kind": "cont",
+  "cut": 2,
+  "actual": 79,
+  "pred": 84.5,
+  "lo": 66.4,
+  "hi": 90.0,
+  "inside": true,
+  "err": 5.5,
+  "fams": [
+   "mix2"
+  ]
+ }
+]
