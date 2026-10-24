@@ -420,16 +420,21 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 
   const num = n => String(Math.round(n * 10) / 10);
 
-  // 5점 구간별 인원: 시뮬레이션 등수 중앙값(r50)으로 'x점 이상 인원'을 구해 구간마다 뺀다
+  // 5점 구간별 인원: 계산기가 저장한 구간 인원(hist: 분포들의 평균, hist_lo/hi: 90% 범위)을 쓰고,
+  // 없으면 시뮬레이션 등수 중앙값(r50)으로 'x점 이상 인원'을 구해 구간마다 뺀다
   // 알려진 점수대 인원(dist)과 구간이 정확히 같으면 그 실제 인원을 쓴다
   function binsOf(d) {
     const N = parseFloat(d.n) || 0;
+    const known = {};
+    (d.dist || []).forEach(x => { const [a, b] = String(x.r).split("~").map(parseFloat); if (b - a === 5) known[a] = x.n; });
+    if (Array.isArray(d.hist) && d.hist.length === 20) return d.hist.map((h, i) => {
+      const lo = i * 5;
+      return lo in known ? { lo, n: known[lo], k: true } : { lo, n: Math.round(h), k: false, band: [Math.round(d.hist_lo[i]), Math.round(d.hist_hi[i])] };
+    });
     if (!N || !Array.isArray(d.rx)) return null;
     // 등수 r → 'x점 이상 인원' r-1 (맨 아래 등수 N은 전원으로 봄)
     const cnt = r => r >= N ? N : Math.max(0, r - 1);
     const ge = (x, k = "mid") => x <= 0 ? N : cnt(simAt(d, x - 0.01)[k]);
-    const known = {};
-    (d.dist || []).forEach(x => { const [a, b] = String(x.r).split("~").map(parseFloat); if (b - a === 5) known[a] = x.n; });
     const bins = [];
     for (let i = 0; i < 20; i++) {
       const lo = i * 5;
@@ -454,7 +459,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const mine = m && m.n >= b.lo && (m.n < b.lo + 5 || (b.lo === 95 && m.n <= 100));
       const r = b.range;
       const info = `${b.lo}~${hiTxt}점: ${b.k ? `${b.n}명 (실제로 확인된 인원)` : `약 ${b.n}명 (추정)`}`
-        + (r ? r[0] === r[2] ? ` · ${b.lo}점 이상 ${r[1]}명` : ` · ${b.lo}점 이상은 ${r[0]}~${r[2]}명 (90% 범위)` : "");
+        + (b.band ? b.band[0] === b.band[1] ? "" : ` · 90% 범위 ${b.band[0]}~${b.band[1]}명`
+          : r ? r[0] === r[2] ? ` · ${b.lo}점 이상 ${r[1]}명` : ` · ${b.lo}점 이상은 ${r[0]}~${r[2]}명 (90% 범위)` : "");
       return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}" data-info="${esc(info)}"><i style="height:${b.n / max * 100}%"></i></div>`;
     }).join("");
     const lines = cuts.map((c, i) => c ? `<div class="cl${c.unsure ? " u" : ""}" style="left:${Math.max(0, Math.min(100, c.n))}%"><span>${i + 1}</span></div>` : "").join("");
@@ -465,7 +471,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       <div class="plot" role="img" aria-label="${esc(label)}">${bars}${lines}${me}</div>
       <div class="axis" aria-hidden="true"><span style="left:0">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100</span></div>
       <p class="readout idle" aria-live="polite">막대를 누르면 그 구간 인원이 나와요.</p>
-      <p class="chart-f">${hasKnown ? "진한 막대는 실제로 확인된 인원이에요. 연한 막대는 " : "막대는 "}알려진 사실과 맞는 분포 수백 개를 계산한 가운데 값이라, 실제 인원과 몇 명씩 다를 수 있어요(알려진 정보가 적은 구간일수록 더). 막대를 누르면 나오는 'x점 이상 인원의 90% 범위'로 얼마나 달라질 수 있는지 볼 수 있어요.</p>
+      <p class="chart-f">${hasKnown ? "진한 막대는 실제로 확인된 인원이에요. 연한 막대는 " : "막대는 "}알려진 사실과 맞는 분포 수백 개를 계산한 가운데 값이라, 실제 인원과 몇 명씩 다를 수 있어요(알려진 정보가 적은 구간일수록 더). 막대를 누르면 나오는 90% 범위로 얼마나 달라질 수 있는지 볼 수 있어요.</p>
       ${d.dist?.length ? `<details><summary>알려진 점수대 인원 보기</summary>${distHtml(d)}</details>` : ""}</div>`;
   }
 

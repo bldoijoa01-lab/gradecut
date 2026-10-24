@@ -14,6 +14,7 @@
 
 python3 estimate.py            -> cuts.json에 결과 기록
 python3 estimate.py --validate -> 확정 컷을 하나씩 숨기고 맞혀 보는 검증
+python3 estimate.py --hist-only -> 분포 그래프(5점 구간 인원)만 갱신
 """
 import json, sys, math
 import numpy as np
@@ -745,6 +746,22 @@ def summarize(ranks, grades, Ns):
     return r05, r50, r95, np.round(gp * 100).astype(int)
 
 
+def hist_of(members, N):
+    """사이트 분포 그래프용 5점 구간 인원: 뽑힌 분포들의 평균(=가운데 값) + 5%/95% 범위.
+    점수마다 등수 중앙값을 따로 내서 빼면 봉우리 위치가 다른 분포들이 섞여 골짜기가 메워짐
+    (화학 쌍봉이 평평하게 보였던 이유) → 분포별 구간 인원을 구한 뒤 구간마다 요약."""
+    edges = np.r_[np.arange(0, 100, 5), 100.01]
+    H = []
+    for fam, th in members:
+        m = Model(fam, th)
+        F = np.array([float(m.F(e)) for e in edges])
+        H.append(np.diff(F) * N)
+    H = np.array(H)
+    return dict(hist=np.round(H.mean(0), 1).tolist(),
+                hist_lo=np.round(np.percentile(H, 5, axis=0), 1).tolist(),
+                hist_hi=np.round(np.percentile(H, 95, axis=0), 1).tolist())
+
+
 def fmt(v):
     return f"{v:.0f}" if abs(v - round(v)) < 0.05 else f"{v:.1f}"
 
@@ -759,6 +776,11 @@ def main():
             continue
         print("==", sid)
         members, fams = posterior(spec)
+        if "--hist-only" in sys.argv:                 # 분포 그래프 값만 갱신 (컷·석차는 그대로)
+            for d in data["subjects"]:
+                if d["id"] == sid:
+                    d.update(hist_of(members, float(d["n"])))
+            continue
         ranks, grades, cs, Ns, X = simulate(spec, members, want_cuts=spec.get("est", []))
         r05, r50, r95, gp = summarize(ranks, grades, Ns)
         est = {}
@@ -780,6 +802,7 @@ def main():
             d["rk_sims"] = 40
             d["rk_widths"] = [round(float(w), 3) for w in np.percentile((r95 - r05) / np.mean(Ns), [10, 50, 90])]
             d["rk_fams"] = fams
+            d.update(hist_of(members, float(np.mean(Ns))))
             if est:
                 c = list(d.get("c", ["", "", "", ""]))
                 ranges = []
