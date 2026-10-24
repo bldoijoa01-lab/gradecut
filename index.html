@@ -152,6 +152,26 @@ h1 span{color:var(--omr)}
 .soonbox{padding:40px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
 .soonbox b{font-family:var(--mono);font-size:1.3rem;letter-spacing:.12em;color:var(--omr)}
 .soonbox p{margin:0;color:var(--muted);font-size:.88rem;max-width:30em;text-wrap:balance;word-break:keep-all}
+.sem{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:10px}
+.sem-h{font-size:.8rem;font-weight:700}
+.sem-h small{font-weight:400;color:var(--muted);margin-left:6px}
+.sem-res{display:flex;align-items:center;gap:12px}
+.sem-res .gb{width:52px;height:52px}
+.sem-res p{margin:0;font-size:.88rem}
+.sem-res p small{display:block;color:var(--muted);font-size:.76rem}
+.need{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.need span{display:block;font-size:.78rem;padding:6px 10px;border-radius:8px;border:1px solid var(--rule);font-variant-numeric:tabular-nums}
+.need span em{display:block;font-style:normal;font-size:.68rem;font-weight:700;color:var(--muted)}
+.need span.g1 em,.need span.g2 em{color:var(--omr)}
+.need span b{font-family:var(--mono);font-weight:600}
+.need span small{color:var(--muted)}
+.sem-f{font-size:.72rem;color:var(--muted);margin:0}
+.semin{grid-column:1/-1;display:flex;gap:10px}
+.semin label{flex:1;max-width:9em}
+.semin .myin{max-width:none}
+.soonhead{padding:16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:4px}
+.soonhead b{font-family:var(--mono);font-size:.95rem;letter-spacing:.12em;color:var(--omr)}
+.soonhead p{margin:0;color:var(--muted);font-size:.84rem;word-break:keep-all}
 .note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
 .empty{padding:28px 16px;color:var(--muted);text-align:center;font-size:.9rem}
 form{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -516,6 +536,103 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
                  : `${g("month")}월 ${g("day")}일(${g("weekday")}) ${g("dayPeriod")} ${g("hour")}:${g("minute")}`;
   };
 
+  // ------------------------------------------------ 학기말 등급 예상 (중간 25 + 기말 25 + 수행 50)
+  // 수행평가는 모두 같은 점수(만점)라고 보면 등수에 영향이 없으니, 학기말 등수 = 중간+기말 합계 등수.
+  // 다른 학생들의 (중간, 기말) 점수 쌍을 가우스 코풀라로 뽑는다: 점수 분포는 각 시험의 분포 그래프 값,
+  // 두 시험의 관계(상관)는 몰라서 0.65·0.8·0.9 세 경우를 똑같이 섞는다.
+  // 기말 데이터가 없으면 기말 분포가 중간과 같은 모양이라고 가정하되, 기말이 더 쉽거나 어려울 수 있으니
+  // 전체가 -8~+8점 움직인 경우(SHIFTS)를 똑같이 섞는다.
+  const PAIR = { "2026 2학기 기말": "2026 2학기 중간" };   // 기말 → 같은 학기 중간
+  const RHOS = [0.65, 0.8, 0.9], SHIFTS = [-8, -4, 0, 4, 8], DRAWS = 2000;
+  const rng = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const Phi = z => { const x = Math.abs(z) / Math.SQRT2, t = 1 / (1 + 0.3275911 * x);
+    const e = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+    return 0.5 * (1 + (z < 0 ? -e : e)); };
+  function binomCdf(k, n, p) {
+    if (k < 0) return 0; if (k >= n || p <= 0) return 1; if (p >= 1) return 0;
+    let lp = n * Math.log1p(-p), s = 0; const r = Math.log(p) - Math.log1p(-p);
+    for (let i = 0; i <= k; i++) { s += Math.exp(lp); lp += Math.log((n - i) / (i + 1)) + r; }
+    return Math.min(1, s);
+  }
+  // 분포 그래프 구간 인원 → 누적확률 u의 점수 (구간 안은 고르게)
+  function invOf(d) {
+    const bins = binsOf(d); if (!bins) return null;
+    const tot = bins.reduce((s, b) => s + b.n, 0); if (!tot) return null;
+    return u => { let t = u * tot; for (const b of bins) { if (t <= b.n && b.n) return b.lo + t / b.n * 5; t -= b.n; } return 100; };
+  }
+  const semCache = {};
+  function semModel(mid, fin) {
+    const key = mid.id + "|" + (fin ? fin.id : "");
+    if (key in semCache) return semCache[key];
+    const N = parseFloat(mid.n) || 0, im = invOf(mid), jf = fin ? invOf(fin) : im;
+    if (!N || !im || !jf) return semCache[key] = null;
+    const r = rng(20261024);
+    const sets = [];
+    for (const rho of RHOS) for (const dx of fin ? [0] : SHIFTS) {
+      const s = new Float64Array(DRAWS), c = Math.sqrt(1 - rho * rho);
+      for (let i = 0; i < DRAWS; i++) {
+        const R = Math.sqrt(-2 * Math.log(Math.max(r(), 1e-12))), a = 2 * Math.PI * r();
+        const z1 = R * Math.cos(a), z2 = R * Math.sin(a);
+        s[i] = im(Phi(z1)) + Math.max(0, Math.min(100, jf(Phi(rho * z1 + c * z2)) + dx));
+      }
+      sets.push(s.sort());
+    }
+    return semCache[key] = { sets, N, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
+  }
+  // 합계 s점일 때 학기말 1~5등급 확률: 나보다 높은 사람 수 ~ 이항(N-1, p), 등수 ≤ R_g 이면 g등급 이내
+  function semProbs(M, s) {
+    const out = [0, 0, 0, 0, 0];
+    for (const set of M.sets) {
+      let a = 0, b = set.length;
+      while (a < b) { const c = (a + b) >> 1; if (set[c] <= s) a = c + 1; else b = c; }
+      const p = (set.length - a) / set.length;
+      let prev = 0;
+      for (let g = 0; g < 5; g++) {
+        const cum = g < 4 ? binomCdf(M.R[g] - 1, M.N - 1, p) : 1;
+        out[g] += (cum - prev) / M.sets.length; prev = cum;
+      }
+    }
+    return out;
+  }
+  const topGrade = gp => gp.reduce((bi, p, k) => (p > gp[bi] ? k : bi), 0);
+  function semInfo(mid, fin, fstr) {
+    const M = semModel(mid, fin), m = parse(mid.my), f = parse(fstr);
+    if (!M || !m) return { M, m };
+    const at = x => semProbs(M, m.n + x);
+    const need = [0, 1, 2, 3].map(g => {
+      const ok = x => at(x).slice(0, g + 1).reduce((s, p) => s + p, 0) >= 0.5;
+      if (ok(0)) return { g, from: 0 };
+      if (!ok(100)) return { g, best: Math.round(at(100).slice(0, g + 1).reduce((s, p) => s + p, 0) * 100) };
+      let a = 0, b = 100;
+      while (b - a > 0.5) { const c = (a + b) / 2; if (ok(c)) b = c; else a = c; }
+      return { g, from: Math.ceil(b) };
+    });
+    const gp = f ? at(f.n) : null;
+    return { M, m, f, gp, need };
+  }
+  const semNote = fin => `'기말 몇 점 이상'은 그 등급 이상일 확률이 50%를 넘는 점수예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 기말이 중간보다 8점까지 쉽거나 어려운 경우를 섞었어요. "}중간을 잘 본 사람이 기말도 잘 보는 정도는 알 수 없어서 여러 경우를 섞어 계산했어요. 수행평가는 모두 같은 점수라고 보고 계산에서 뺐어요.`;
+  function semHtml(mid, fin, fstr, note = true) {
+    const s = semInfo(mid, fin, fstr);
+    if (!s.M) return `<div class="sem"><p class="sem-f">중간 분포 정보가 아직 없어서 학기말 등급을 계산할 수 없어요.</p></div>`;
+    if (!s.m) return `<div class="sem"><p class="sem-f">중간 점수를 넣으면 학기말 등급 예상이 나와요.</p></div>`;
+    const res = s.gp ? (() => {
+      const g = topGrade(s.gp), pm = Math.round(s.gp[g] * 100);
+      const rest = s.gp.map((p, k) => [k + 1, Math.round(p * 100)]).filter(([k, p]) => k !== g + 1 && p >= 1).map(([k, p]) => `${k}등급 ${p}%`).join(" · ");
+      return `<div class="sem-res"><span class="gb g${g + 1}${pm < 70 ? " part" : ""}"><b>${g + 1}</b><i>${pm}%</i></span><p>기말 <b>${esc(s.f.raw)}</b>점이면 학기말 <b>${g + 1}등급</b> 가능성이 가장 커요 (${pm}%)${rest ? `<small>${rest}</small>` : ""}</p></div>`;
+    })() : "";
+    const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 점이든 유력" : x.from != null ? `기말 <b>${x.from}</b>점 이상` : `100점이어도 어려움 <small>(${x.best}%)</small>`}</span>`).join("");
+    return `<div class="sem"><div class="sem-h">학기말 등급 예상 <small>중간 ${esc(s.m.raw)}점 기준 · 수행평가는 계산에서 뺐어요</small></div>
+      ${res}<div class="need">${need}</div>
+      ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
+  }
+  const semKey = mid => "sem-" + mid.id;
+  // 기말 데이터가 들어온 뒤: 기말 과목 행마다 같은 과목 중간 점수와 합쳐 학기말 예상
+  function semRow(fin) {
+    const midExam = PAIR[fin.exam]; if (!midExam) return "";
+    const mid = docs.find(x => x.exam === midExam && x.subject === fin.subject); if (!mid) return "";
+    return semHtml({ ...mid, my: scores[mid.id]?.my || "" }, fin, fin.my);
+  }
+
   const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
   // 아직 컷이 없는 다가오는 시험: 칩만 보여주고 '준비 중' 안내 (cuts.json에 과목이 생기면 자동으로 일반 시험이 됨)
   const UPCOMING = ["2026 2학기 기말"];
@@ -530,8 +647,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       `<button class="chip" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}</button>`).join("")
       + soon.map(e => `<button class="chip soon" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}<em>준비 중</em></button>`).join("");
     const isSoon = soon.includes(current);
-    $("picker").hidden = isSoon;
-    if (isSoon) {
+    const base = isSoon ? PAIR[current] : current;     // 준비 중인 기말 탭: 과목 목록은 같은 학기 중간에서
+    $("picker").hidden = isSoon && !base;
+    if (isSoon && !base) {
       $("summary").hidden = true;
       $("examTitle").textContent = current;
       $("count").textContent = "준비 중";
@@ -539,7 +657,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       return;
     }
     if (!current) { $("examTitle").textContent = "아직 등급컷이 없어요"; $("rows").innerHTML = ""; return; }
-    const examDocs = docs.filter(d => d.exam === current);
+    const examDocs = docs.filter(d => d.exam === base);
     const electives = examDocs.filter(d => !d.common).sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
     const showPick = picking || !sel;
     const chosen = sel || [];
@@ -551,6 +669,18 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const rows = examDocs.filter(d => d.common || chosen.includes(d.subject))
       .sort((a, b) => (b.common ? 1 : 0) - (a.common ? 1 : 0) || a.subject.localeCompare(b.subject, "ko"))
       .map(d => ({ ...d, my: scores[d.id]?.my || "", g: scores[d.id]?.g || "" }));
+    if (isSoon) {
+      $("summary").hidden = true;
+      $("examTitle").textContent = current + " · 학기말 미리 계산";
+      $("count").textContent = "기말 컷 준비 중";
+      $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요. 그 전까지는 기말 목표 점수를 넣어서 학기말 등급(중간 25% + 기말 25% + 수행 50%)을 미리 계산해 볼 수 있어요.</p><p class="sem-f">${semNote(null)}</p></div>`
+        + rows.map(d => {
+          const midIn = `<label>중간 점수<input class="myin" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" value="${esc(d.my)}"></label>`;
+          const finIn = `<label>기말 목표<input class="myin" data-score="${esc(semKey(d))}" inputmode="decimal" placeholder="입력" value="${esc(scores[semKey(d)]?.my || "")}"></label>`;
+          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false)}</div>`;
+        }).join("");
+      return;
+    }
     const sum = summaryHtml(rows);
     $("summary").innerHTML = sum;
     $("summary").hidden = !sum;
@@ -582,6 +712,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
           <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
         ${goalHtml(d)}
         ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
+        ${semRow(d)}
         ${chartHtml(d)}
         ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
         ${d.at ? `<p class="rowat">컷 업데이트 ${fmt(d.at, true)}</p>` : ""}
