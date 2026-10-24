@@ -170,17 +170,6 @@ h1 span{color:var(--omr)}
 .hero h3{margin:0;font-size:1.05rem;color:var(--omr)}
 .hero p{margin:0;font-size:.86rem;color:var(--ink);word-break:keep-all}
 .sem-f{font-size:.72rem;color:var(--muted);margin:0}
-.raw{display:flex;flex-direction:column;gap:6px}
-.raw-h{font-size:.76rem;font-weight:700}
-.raw-h small{font-weight:400;color:var(--muted);margin-left:6px}
-.raw-c{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-.raw-c span{display:flex;flex-direction:column;align-items:center;padding:5px 2px;border:1px solid var(--rule);border-radius:6px;min-width:0}
-.raw-c em{font-style:normal;font-size:.66rem;color:var(--muted)}
-.raw-c b{font-family:var(--mono);font-size:.92rem;font-weight:600;font-variant-numeric:tabular-nums}
-.raw-c small{font-size:.6rem;color:var(--muted);font-family:var(--mono);white-space:nowrap}
-.raw-c span.me{background:var(--omr-soft);border-color:transparent}
-.raw-c span.me b{color:var(--me)}
-.raw-c span.me small{white-space:normal;text-align:center}
 .semin{grid-column:1/-1;display:flex;gap:10px}
 .semin label{flex:1;max-width:9em}
 .semin .myin{max-width:none}
@@ -640,16 +629,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       return { g, from, rank, rlo: Math.min(...rk), rhi: Math.max(...rk), sr };
     });
     const gp = f ? at(f.n) : null;
-    // 학기말 원점수(수행 만점 가정 = 50 + (중간+기말)/4): 예상 컷은 합계 분포에서 R_g번째 사람 점수, 경우별 가운데 값과 범위
-    const raw = v => 50 + v / 4;
-    const rawCuts = M.R.map(Rg => {
-      const v = M.sets.map(({ s: set }) => raw(set[Math.max(0, Math.min(set.length - 1, Math.round(set.length * (1 - Rg / M.N))))])).sort((a, b) => a - b);
-      return { mid: v[v.length >> 1], lo: v[0], hi: v[v.length - 1] };
-    });
-    const myRaw = f ? raw(m.n + f.n) : null;
-    return { M, m, f, gp, need, rawCuts, myRaw };
+    return { M, m, f, gp, need };
   }
-  const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어려운 경우를 넣었어요. "}수행평가는 모두 같은 점수라고 보고 계산에서 뺐어요. 원점수 예상 컷은 수행이 전부 만점일 때 기준이라, 수행에서 깎인 사람이 있으면 조금 낮아질 수 있어요.`;
+  const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어려운 경우를 넣었어요. "}수행평가는 모두 같은 점수라고 보고 계산에서 뺐어요.`;
   function semHtml(mid, fin, fstr, note = true) {
     const s = semInfo(mid, fin, fstr);
     if (!s.M) return `<div class="sem"><p class="sem-f">중간 분포 정보가 아직 없어서 학기말 등급을 계산할 수 없어요.</p></div>`;
@@ -666,7 +648,6 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       : `기말 <b>약 ${x.rank}등</b> 안${x.rlo !== x.rhi ? ` <small>(${x.rlo}~${x.rhi}등)</small>` : ""}<small class="sc">${scoreTxt(x)}</small>`}</span>`).join("");
     return `<div class="sem"><div class="sem-h">학기말 등급 예상 <small>중간 ${esc(s.m.raw)}점 기준 · 수행평가는 계산에서 뺐어요</small></div>
       ${res}<div class="need">${need}</div>
-      <div class="raw"><div class="raw-h">학기말 원점수 예상 <small>수행 만점 가정 · 참고용</small></div><div class="raw-c">${s.rawCuts.map((c, i) => `<span><em>${i + 1}컷</em><b>${c.mid.toFixed(1)}</b><small>${c.lo.toFixed(1)}~${c.hi.toFixed(1)}</small></span>`).join("")}${s.myRaw != null ? `<span class="me"><em>나</em><b>${s.myRaw.toFixed(1)}</b><small>중간·기말 ${esc(s.m.raw)}·${esc(s.f.raw)}</small></span>` : ""}</div></div>
       ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
   }
   const semKey = mid => "sem-" + mid.id;
