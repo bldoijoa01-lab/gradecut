@@ -192,9 +192,17 @@ class Model:
         return all(((xs >= a) & (xs <= b)).any() for a, b in ranges)
 
     def bimodal(self):
+        """가운데 봉우리 두 개(사이 골짜기가 낮은 봉우리의 75% 이하)가 있는지.
+        분포 끝에 몰린 것(100점 근처 쏠림, 베타 하한의 뾰족한 끝)은 봉우리로 안 침 —
+        예전엔 이것도 봉우리로 쳐서 화학이 'U자 + 한 봉우리'로 나왔음."""
         d = self.shape_dens()
+        x = self.mids
+        sup = x[d > 1e-4]
+        if not len(sup):
+            return False
+        lo_edge, hi_edge = sup[0] + 4, min(sup[-1], 100) - 4
         idx = np.where((d[1:-1] >= d[:-2]) & (d[1:-1] > d[2:]) & (d[1:-1] > 1e-4))[0] + 1
-        peaks = list(idx)
+        peaks = [i for i in idx if lo_edge < x[i] < hi_edge]
         if len(peaks) < 2:
             return False
         best = None
