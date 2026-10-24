@@ -115,6 +115,40 @@ h1 span{color:var(--omr)}
 .drow.mk .r,.drow.mk .n{color:inherit;font-weight:600}
 .drow.mk.cut{color:var(--omr)}
 .drow.mk.me{color:var(--me)}
+.chart{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;padding:10px 12px 8px;background:var(--bg);border-radius:8px}
+.chart-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:.72rem;color:var(--muted);letter-spacing:.04em}
+.plot{position:relative;height:96px;display:flex;align-items:flex-end;border-bottom:1px solid var(--rule);margin-top:14px}
+.plot .b{flex:1 1 0;min-width:0;padding:0 1px;box-sizing:border-box}
+.plot .b i{display:block;height:100%;border-radius:2px 2px 0 0;background:var(--muted);opacity:.45}
+.plot .b.g1 i{background:var(--omr)}
+.plot .b.g2 i{background:var(--omr);opacity:.3}
+.plot .b.k i{opacity:1}
+.plot .b.g2.k i{opacity:.6}
+.plot .b.me i{background:var(--me);opacity:.9}
+.plot .cl{position:absolute;top:0;bottom:0;border-left:1.5px solid var(--omr);pointer-events:none}
+.plot .cl.u{border-left-style:dashed}
+.plot .cl span{position:absolute;top:-14px;left:-4px;font:600 .6rem var(--mono);color:var(--omr)}
+.plot .ml{position:absolute;top:-4px;bottom:0;border-left:2px solid var(--me);pointer-events:none}
+.plot .ml span{position:absolute;top:4px;left:3px;font:700 .62rem var(--sans);color:var(--me);white-space:nowrap;background:var(--bg);padding:0 3px;border-radius:3px}
+.axis{position:relative;height:12px;font:500 .6rem var(--mono);color:var(--muted)}
+.axis span{position:absolute;transform:translateX(-50%)}
+.axis span:first-child{transform:none}
+.axis span:last-child{transform:translateX(-100%)}
+.chart-f{font-size:.7rem;color:var(--muted);margin:0}
+.chart details{font-size:.76rem;color:var(--muted)}
+.chart summary{cursor:pointer}
+.chart details .dist{padding:8px 0 0;background:none}
+.goal{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.goal span{font-size:.78rem;padding:4px 10px;border-radius:8px;border:1px solid var(--me);color:var(--me);font-variant-numeric:tabular-nums}
+.goal span b{font-family:var(--mono);font-weight:600}
+.goal span.keep{border-color:var(--rule);color:var(--ink)}
+.goal span small{color:var(--muted);font-size:.92em}
+.chip.soon{border-style:dashed;color:var(--muted)}
+.chip.soon em{font-style:normal;font-size:.68rem;font-weight:700;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--omr-soft);color:var(--omr)}
+.chip.soon[aria-pressed="true"]{background:var(--surface);border-color:var(--omr);color:var(--ink)}
+.soonbox{padding:40px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.soonbox b{font-family:var(--mono);font-size:1.3rem;letter-spacing:.12em;color:var(--omr)}
+.soonbox p{margin:0;color:var(--muted);font-size:.88rem;max-width:30em;text-wrap:balance;word-break:keep-all}
 .note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
 .empty{padding:28px 16px;color:var(--muted);text-align:center;font-size:.9rem}
 form{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -381,6 +415,71 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     return `<span class="rkwrap"><span class="rk">${txt}</span><span class="conf ${LV[0]} tr" tabindex="0" data-tip="${esc(tip)}">${lv}</span></span>`;
   }
 
+  const num = n => String(Math.round(n * 10) / 10);
+
+  // 5점 구간별 인원: 시뮬레이션 등수 중앙값(r50)으로 'x점 이상 인원'을 구해 구간마다 뺀다
+  // 알려진 점수대 인원(dist)과 구간이 정확히 같으면 그 실제 인원을 쓴다
+  function binsOf(d) {
+    const N = parseFloat(d.n) || 0;
+    if (!N || !Array.isArray(d.rx)) return null;
+    const ge = x => { if (x <= 0) return N; const r = simAt(d, x - 0.01).mid; return r >= N ? N : Math.max(0, r - 1); };
+    const known = {};
+    (d.dist || []).forEach(x => { const [a, b] = String(x.r).split("~").map(parseFloat); if (b - a === 5) known[a] = x.n; });
+    const bins = [];
+    for (let i = 0; i < 20; i++) {
+      const lo = i * 5;
+      const est = Math.max(0, ge(lo) - (i === 19 ? 0 : ge(lo + 5)));
+      bins.push(lo in known ? { lo, n: known[lo], k: true } : { lo, n: Math.round(est), k: false });
+    }
+    return bins;
+  }
+
+  function chartHtml(d) {
+    const bins = binsOf(d);
+    if (!bins) return d.dist?.length ? distHtml(d) : "";
+    const cuts = [0, 1, 2, 3].map(i => parse((d.c || [])[i]));
+    const gradeAt = x => { for (let i = 0; i < 4; i++) if (cuts[i] && x >= cuts[i].n) return i + 1; return cuts[3] ? 5 : 0; };
+    const m = parse(d.my);
+    const max = Math.max(...bins.map(b => b.n), 1);
+    const bars = bins.map(b => {
+      const hiTxt = b.lo === 95 ? "100" : b.lo + 5;
+      const g = gradeAt(b.lo + 2.5);
+      const mine = m && m.n >= b.lo && (m.n < b.lo + 5 || (b.lo === 95 && m.n <= 100));
+      const tip = `${b.lo}~${hiTxt}점: ${b.k ? "" : "약 "}${b.n}명${b.k ? " (확인된 인원)" : " (추정)"}`;
+      return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}${b.lo >= 50 ? " tr" : ""}" style="height:${b.n / max * 100}%" data-tip="${esc(tip)}"><i></i></div>`;
+    }).join("");
+    const lines = cuts.map((c, i) => c ? `<div class="cl${c.unsure ? " u" : ""}" style="left:${Math.max(0, Math.min(100, c.n))}%"><span>${i + 1}</span></div>` : "").join("");
+    const me = m ? `<div class="ml" style="left:${Math.max(0, Math.min(100, m.n))}%"><span>나</span></div>` : "";
+    const hasKnown = bins.some(b => b.k);
+    const label = `${d.subject} 점수 분포 추정: ` + bins.filter(b => b.n).map(b => `${b.lo}점대 ${b.n}명`).join(", ");
+    return `<div class="chart"><div class="chart-h"><span>점수 분포 · 5점 구간 인원</span><span>세로선 = 등급컷${cuts.some(c => c?.unsure) ? " (점선은 추정)" : ""}</span></div>
+      <div class="plot" role="img" aria-label="${esc(label)}">${bars}${lines}${me}</div>
+      <div class="axis" aria-hidden="true"><span style="left:0">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100</span></div>
+      <p class="chart-f">${hasKnown ? "진한 막대는 실제로 확인된 인원, 연한 막대는 " : "막대는 "}알려진 사실에 맞춘 계산으로 추정한 인원이에요. 막대에 마우스를 올리면 인원이 나와요.</p>
+      ${d.dist?.length ? `<details><summary>알려진 점수대 인원 보기</summary>${distHtml(d)}</details>` : ""}</div>`;
+  }
+
+  // 다음 등급까지 몇 점 더 필요한지, 지금 등급 컷보다 몇 점 위인지
+  function goalHtml(d) {
+    const m = parse(d.my); if (!m) return "";
+    const cuts = [0, 1, 2, 3].map(i => { const v = String((d.c || [])[i] || ""); const p = parse(v); return p && { ...p, unsure: p.unsure || /[x↑]/.test(v) }; });
+    if (!cuts[0]) return "";
+    let cg = 0;
+    for (let i = 0; i < 4; i++) { if (!cuts[i]) break; if (m.n >= cuts[i].n) { cg = i + 1; break; } }
+    if (!cg) { if (!cuts[3]) return ""; cg = 5; }
+    const out = [];
+    const rankTxt = x => { const s = parseFloat(d.n) ? simAt(d, x) : null; return s ? ` <small>· 그 점수면 약 ${Math.max(1, s.mid)}등</small>` : ""; };
+    if (cg > 1) {
+      const t = cuts[cg - 2];
+      out.push(`<span>${cg - 1}등급까지 <b>+${num(t.n - m.n)}</b>점${t.unsure ? " <small>(추정 컷 기준)</small>" : ""}${rankTxt(t.n)}</span>`);
+    }
+    if (cg <= 4) {
+      const c = cuts[cg - 1];
+      out.push(`<span class="keep">${cg}등급 컷${c.unsure ? "(추정)" : ""}보다 <b>${num(m.n - c.n)}</b>점 위</span>`);
+    }
+    return out.length ? `<div class="goal">${out.join("")}</div>` : "";
+  }
+
   function distHtml(d) {
     const items = d.dist.map(x => ({ lo: parseFloat(x.r), r: x.r, n: x.n }));
     const max = Math.max(...items.map(i => i.n), 1);
@@ -402,14 +501,27 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   };
 
   const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
+  // 아직 컷이 없는 다가오는 시험: 칩만 보여주고 '준비 중' 안내 (cuts.json에 과목이 생기면 자동으로 일반 시험이 됨)
+  const UPCOMING = ["2026 2학기 기말"];
 
   function render() {
     if (document.activeElement?.classList.contains("myin")) { renderWaiting = true; return; }
     renderWaiting = false;
     const list = exams();
-    if (!current || !list.includes(current)) current = list[0] || null;
+    const soon = UPCOMING.filter(e => !list.includes(e));
+    if (!current || !(list.includes(current) || soon.includes(current))) current = list[0] || null;
     $("chips").innerHTML = list.map(e =>
-      `<button class="chip" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}</button>`).join("");
+      `<button class="chip" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}</button>`).join("")
+      + soon.map(e => `<button class="chip soon" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}<em>준비 중</em></button>`).join("");
+    const isSoon = soon.includes(current);
+    $("picker").hidden = isSoon;
+    if (isSoon) {
+      $("summary").hidden = true;
+      $("examTitle").textContent = current;
+      $("count").textContent = "준비 중";
+      $("rows").innerHTML = `<div class="soonbox"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 여기에 올라와요.</p><p>중간고사처럼 과목별 컷, 내 등급, 석차 계산을 그대로 쓸 수 있어요.</p></div>`;
+      return;
+    }
     if (!current) { $("examTitle").textContent = "아직 등급컷이 없어요"; $("rows").innerHTML = ""; return; }
     const examDocs = docs.filter(d => d.exam === current);
     const electives = examDocs.filter(d => !d.common).sort((a, b) => a.subject.localeCompare(b.subject, "ko"));
@@ -452,8 +564,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
         <div class="cuts">${cells}${me}</div>
         <div class="strip" aria-hidden="true"><div class="base"></div>
           <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
+        ${goalHtml(d)}
         ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
-        ${d.dist?.length ? distHtml(d) : ""}
+        ${chartHtml(d)}
         ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
         ${d.at ? `<p class="rowat">컷 업데이트 ${fmt(d.at, true)}</p>` : ""}
       </div>`;
