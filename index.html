@@ -118,8 +118,9 @@ h1 span{color:var(--omr)}
 .chart{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;padding:10px 12px 8px;background:var(--bg);border-radius:8px}
 .chart-h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:.72rem;color:var(--muted);letter-spacing:.04em}
 .plot{position:relative;height:96px;display:flex;align-items:flex-end;border-bottom:1px solid var(--rule);margin-top:14px}
-.plot .b{flex:1 1 0;min-width:0;padding:0 1px;box-sizing:border-box}
-.plot .b i{display:block;height:100%;border-radius:2px 2px 0 0;background:var(--muted);opacity:.45}
+.plot .b{flex:1 1 0;min-width:0;align-self:stretch;display:flex;align-items:flex-end;padding:0 1px;box-sizing:border-box;cursor:pointer;border-radius:3px 3px 0 0;-webkit-tap-highlight-color:transparent}
+.plot .b.sel{background:var(--rule)}
+.plot .b i{display:block;width:100%;border-radius:2px 2px 0 0;background:var(--muted);opacity:.45}
 .plot .b.g1 i{background:var(--omr)}
 .plot .b.g2 i{background:var(--omr);opacity:.3}
 .plot .b.k i{opacity:1}
@@ -135,6 +136,8 @@ h1 span{color:var(--omr)}
 .axis span:first-child{transform:none}
 .axis span:last-child{transform:translateX(-100%)}
 .chart-f{font-size:.7rem;color:var(--muted);margin:0}
+.readout{font-size:.78rem;color:var(--ink);margin:0;min-height:1.5em;font-variant-numeric:tabular-nums}
+.readout.idle{color:var(--muted)}
 .chart details{font-size:.76rem;color:var(--muted)}
 .chart summary{cursor:pointer}
 .chart details .dist{padding:8px 0 0;background:none}
@@ -422,14 +425,18 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   function binsOf(d) {
     const N = parseFloat(d.n) || 0;
     if (!N || !Array.isArray(d.rx)) return null;
-    const ge = x => { if (x <= 0) return N; const r = simAt(d, x - 0.01).mid; return r >= N ? N : Math.max(0, r - 1); };
+    // 등수 r → 'x점 이상 인원' r-1 (맨 아래 등수 N은 전원으로 봄)
+    const cnt = r => r >= N ? N : Math.max(0, r - 1);
+    const ge = (x, k = "mid") => x <= 0 ? N : cnt(simAt(d, x - 0.01)[k]);
     const known = {};
     (d.dist || []).forEach(x => { const [a, b] = String(x.r).split("~").map(parseFloat); if (b - a === 5) known[a] = x.n; });
     const bins = [];
     for (let i = 0; i < 20; i++) {
       const lo = i * 5;
       const est = Math.max(0, ge(lo) - (i === 19 ? 0 : ge(lo + 5)));
-      bins.push(lo in known ? { lo, n: known[lo], k: true } : { lo, n: Math.round(est), k: false });
+      // 이 점수 이상 인원의 90% 범위 (가상의 반 시뮬레이션의 5%·95% 등수)
+      const range = lo > 0 ? [ge(lo, "lo"), ge(lo), ge(lo, "hi")] : null;
+      bins.push(lo in known ? { lo, n: known[lo], k: true, range } : { lo, n: Math.round(est), k: false, range });
     }
     return bins;
   }
@@ -445,8 +452,10 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const hiTxt = b.lo === 95 ? "100" : b.lo + 5;
       const g = gradeAt(b.lo + 2.5);
       const mine = m && m.n >= b.lo && (m.n < b.lo + 5 || (b.lo === 95 && m.n <= 100));
-      const tip = `${b.lo}~${hiTxt}점: ${b.k ? "" : "약 "}${b.n}명${b.k ? " (확인된 인원)" : " (추정)"}`;
-      return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}${b.lo >= 50 ? " tr" : ""}" style="height:${b.n / max * 100}%" data-tip="${esc(tip)}"><i></i></div>`;
+      const r = b.range;
+      const info = `${b.lo}~${hiTxt}점: ${b.k ? `${b.n}명 (실제로 확인된 인원)` : `약 ${b.n}명 (추정)`}`
+        + (r ? r[0] === r[2] ? ` · ${b.lo}점 이상 ${r[1]}명` : ` · ${b.lo}점 이상은 ${r[0]}~${r[2]}명 (90% 범위)` : "");
+      return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}" data-info="${esc(info)}"><i style="height:${b.n / max * 100}%"></i></div>`;
     }).join("");
     const lines = cuts.map((c, i) => c ? `<div class="cl${c.unsure ? " u" : ""}" style="left:${Math.max(0, Math.min(100, c.n))}%"><span>${i + 1}</span></div>` : "").join("");
     const me = m ? `<div class="ml" style="left:${Math.max(0, Math.min(100, m.n))}%"><span>나</span></div>` : "";
@@ -455,7 +464,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     return `<div class="chart"><div class="chart-h"><span>점수 분포 · 5점 구간 인원</span><span>세로선 = 등급컷${cuts.some(c => c?.unsure) ? " (점선은 추정)" : ""}</span></div>
       <div class="plot" role="img" aria-label="${esc(label)}">${bars}${lines}${me}</div>
       <div class="axis" aria-hidden="true"><span style="left:0">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100</span></div>
-      <p class="chart-f">${hasKnown ? "진한 막대는 실제로 확인된 인원, 연한 막대는 " : "막대는 "}알려진 사실에 맞춘 계산으로 추정한 인원이에요. 막대에 마우스를 올리면 인원이 나와요.</p>
+      <p class="readout idle" aria-live="polite">막대를 누르면 그 구간 인원이 나와요.</p>
+      <p class="chart-f">${hasKnown ? "진한 막대는 실제로 확인된 인원이에요. 연한 막대는 " : "막대는 "}알려진 사실과 맞는 분포 수백 개를 계산한 가운데 값이라, 실제 인원과 몇 명씩 다를 수 있어요(알려진 정보가 적은 구간일수록 더). 막대를 누르면 나오는 'x점 이상 인원의 90% 범위'로 얼마나 달라질 수 있는지 볼 수 있어요.</p>
       ${d.dist?.length ? `<details><summary>알려진 점수대 인원 보기</summary>${distHtml(d)}</details>` : ""}</div>`;
   }
 
@@ -580,7 +590,17 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     $("status").textContent = saveLocal() ? "내 점수를 이 브라우저에 저장했어요." : "이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라져요.";
   }
 
+  // 분포 막대: 누르거나(휴대폰) 마우스를 올리면 아래 줄에 인원 표시
+  const showBar = bar => {
+    const chart = bar.closest(".chart"); if (!chart) return;
+    chart.querySelectorAll(".b.sel").forEach(x => x.classList.remove("sel"));
+    bar.classList.add("sel");
+    const out = chart.querySelector(".readout");
+    out.textContent = bar.dataset.info; out.classList.remove("idle");
+  };
+  document.addEventListener("mouseover", e => { const b = e.target.closest?.(".plot .b"); if (b) showBar(b); });
   document.addEventListener("click", e => {
+    const bar = e.target.closest(".plot .b"); if (bar) { showBar(bar); return; }
     const t = e.target.closest("button"); if (!t) return;
     if (t.dataset.exam) { current = t.dataset.exam; render(); }
     else if (t.dataset.pick) {
