@@ -453,7 +453,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     (d.dist || []).forEach(x => { const [a, b] = String(x.r).split("~").map(parseFloat); if (b - a === 5) known[a] = x.n; });
     if (Array.isArray(d.hist) && d.hist.length === 20) return d.hist.map((h, i) => {
       const lo = i * 5;
-      return lo in known ? { lo, n: known[lo], k: true } : { lo, n: Math.round(h), k: false, band: [Math.round(d.hist_lo[i]), Math.round(d.hist_hi[i])] };
+      return lo in known ? { lo, n: known[lo], h: known[lo], k: true } : { lo, n: Math.round(h), h, k: false, band: [Math.round(d.hist_lo[i]), Math.round(d.hist_hi[i])] };
     });
     if (!N || !Array.isArray(d.rx)) return null;
     // 등수 r → 'x점 이상 인원' r-1 (맨 아래 등수 N은 전원으로 봄)
@@ -476,7 +476,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const cuts = [0, 1, 2, 3].map(i => parse((d.c || [])[i]));
     const gradeAt = x => { for (let i = 0; i < 4; i++) if (cuts[i] && x >= cuts[i].n) return i + 1; return cuts[3] ? 5 : 0; };
     const m = parse(d.my);
-    const max = Math.max(...bins.map(b => b.n), 1);
+    const hOf = b => b.h ?? b.n;     // 막대 높이는 반올림 전 값 (인원이 적은 과목에서 계단처럼 안 보이게)
+    const max = Math.max(...bins.map(hOf), 1e-9);
     const bars = bins.map(b => {
       const hiTxt = b.lo === 95 ? "100" : b.lo + 5;
       const g = gradeAt(b.lo + 2.5);
@@ -485,7 +486,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const info = `${b.lo}~${hiTxt}점: ${b.k ? `${b.n}명 (실제로 확인된 인원)` : `약 ${b.n}명 (추정)`}`
         + (b.band ? b.band[0] === b.band[1] ? "" : ` · 90% 범위 ${b.band[0]}~${b.band[1]}명`
           : r ? r[0] === r[2] ? ` · ${b.lo}점 이상 ${r[1]}명` : ` · ${b.lo}점 이상은 ${r[0]}~${r[2]}명 (90% 범위)` : "");
-      return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}" data-info="${esc(info)}"><i style="height:${b.n / max * 100}%"></i></div>`;
+      return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}" data-info="${esc(info)}"><i style="height:${hOf(b) / max * 100}%"></i></div>`;
     }).join("");
     const lines = cuts.map((c, i) => c ? `<div class="cl${c.unsure ? " u" : ""}" style="left:${Math.max(0, Math.min(100, c.n))}%"><span>${i + 1}</span></div>` : "").join("");
     const me = m ? `<div class="ml" style="left:${Math.max(0, Math.min(100, m.n))}%"><span>나</span></div>` : "";
