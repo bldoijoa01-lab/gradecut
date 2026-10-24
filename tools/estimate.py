@@ -727,6 +727,9 @@ SPECS = {
         families=["mix2", "itm2", "irt2"],
         why="100점 1명·90점 이상 6명·80점대 11명·평균 확정 + 선생님 말씀(1컷 80 중후반, 쌍봉 30~40·70~80) + 50점대가 40·60점대보다 적음 + 25문항 실제 배점(서답형 어려움) · 석차는 실제로 나올 수 있는 점수 기준(동점은 같은 등수)",
         est=[0, 1, 2, 3]),
+    "2026-2mid-earth": dict(
+        N=41, cuts=[(80.1, .10), (21, .90)], mean=52.5,     # 평균 '52.x' → 52.5 (±0.5는 평균 오차보다 훨씬 작음)
+        why="1·4컷 확정 + 평균(52점대) · 응시 41명", est=[1, 2]),
     "2026-2mid-hwaeon": dict(
         N=227, cuts=[(75, .10)], counts=[(95, 1), (90, 3)],
         bands=[(70, 75, 8), (65, 70, 24), (45, 50, 38), (40, 45, 30)],
@@ -820,7 +823,7 @@ def validate():
     """확정 컷을 하나씩 숨기고 나머지 사실로 맞혀 보기."""
     tests = [("2026-2mid-english", k) for k in range(4)] + [("2026-2mid-calc", k) for k in range(3)] + \
             [("2026-2mid-bio", k) for k in range(3)] + [("2026-2mid-hwaeon", 0)] + \
-            [("2026-2mid-chem", k) for k in range(2)]
+            [("2026-2mid-chem", k) for k in range(2)] + [("2026-2mid-earth", k) for k in range(2)]
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1].split(",")
         tests = [t for t in tests if t[0] in only]
@@ -829,17 +832,18 @@ def validate():
         spec = json.loads(json.dumps(SPECS[sid]))
         spec["cuts"] = [tuple(c) for c in spec["cuts"]]
         actual = spec["cuts"][k][0]
+        gi = min(range(4), key=lambda i: abs(Q[i] - spec["cuts"][k][1]))   # k번째 확정 컷이 몇 등급 컷인지 (지구: [1컷, 4컷])
         spec["cuts"] = [c for i, c in enumerate(spec["cuts"]) if i != k]
         spec["counts"] = [tuple(c) for c in spec.get("counts", [])]
         members, fams = posterior(spec, quiet=True, iters=4000)
-        _, _, cs, _, _ = simulate(spec, members, D=30, want_cuts=[k])
-        a = np.array(cs[k])
+        _, _, cs, _, _ = simulate(spec, members, D=30, want_cuts=[gi])
+        a = np.array(cs[gi])
         med, lo5, hi95 = np.percentile(a, 50), np.percentile(a, 5), np.percentile(a, 95)
         inside = lo5 <= actual <= hi95
-        rows.append(dict(subject=sid, cut=k + 1, actual=actual, pred=round(float(med), 1),
+        rows.append(dict(subject=sid, cut=gi + 1, actual=actual, pred=round(float(med), 1),
                          lo=round(float(lo5), 1), hi=round(float(hi95), 1), inside=bool(inside),
                          err=round(float(med - actual), 1)))
-        print(f"{sid:20s} {k+1}컷 실제 {actual:5.1f} | 예측 {med:5.1f} (90%: {lo5:5.1f}~{hi95:5.1f}) {'O' if inside else 'X'}  오차 {med-actual:+.1f}")
+        print(f"{sid:20s} {gi+1}컷 실제 {actual:5.1f} | 예측 {med:5.1f} (90%: {lo5:5.1f}~{hi95:5.1f}) {'O' if inside else 'X'}  오차 {med-actual:+.1f}")
     cov = sum(r["inside"] for r in rows)
     mae = float(np.mean([abs(r["err"]) for r in rows]))
     print(f"범위 적중 {cov}/{len(rows)}, 평균 오차 {mae:.1f}점")
