@@ -165,6 +165,10 @@ h1 span{color:var(--omr)}
 .need span.g1 em,.need span.g2 em{color:var(--omr)}
 .need span b{font-family:var(--mono);font-weight:600}
 .need span small{color:var(--muted)}
+.need span small.sc{display:block;font-size:.7rem}
+.hero{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:14px;border-radius:10px;background:var(--omr-soft)}
+.hero h3{margin:0;font-size:1.05rem;color:var(--omr)}
+.hero p{margin:0;font-size:.86rem;color:var(--ink);word-break:keep-all}
 .sem-f{font-size:.72rem;color:var(--muted);margin:0}
 .semin{grid-column:1/-1;display:flex;gap:10px}
 .semin label{flex:1;max-width:9em}
@@ -575,21 +579,24 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
         const z1 = R * Math.cos(a), z2 = R * Math.sin(a);
         s[i] = im(Phi(z1)) + Math.max(0, Math.min(100, jf(Phi(rho * z1 + c * z2)) + dx));
       }
-      sets.push(s.sort());
+      sets.push({ s: s.sort(), rho, dx });
     }
-    return semCache[key] = { sets, N, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
+    // 기말에서 x점 이상인 인원 (난이도 차이 없을 때) → '기말 몇 등 안'으로 바꿀 때 씀
+    const fb = binsOf(fin || mid), ft = fb.reduce((a, b) => a + b.n, 0);
+    const above = x => N * fb.reduce((a, b) => a + (x <= b.lo ? b.n : x < b.lo + 5 ? b.n * (b.lo + 5 - x) / 5 : 0), 0) / ft;
+    return semCache[key] = { sets, N, above, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
   }
   // 합계 s점일 때 학기말 1~5등급 확률: 나보다 높은 사람 수 ~ 이항(N-1, p), 등수 ≤ R_g 이면 g등급 이내
-  function semProbs(M, s) {
+  function semProbs(M, s, sets = M.sets) {
     const out = [0, 0, 0, 0, 0];
-    for (const set of M.sets) {
+    for (const { s: set } of sets) {
       let a = 0, b = set.length;
       while (a < b) { const c = (a + b) >> 1; if (set[c] <= s) a = c + 1; else b = c; }
       const p = (set.length - a) / set.length;
       let prev = 0;
       for (let g = 0; g < 5; g++) {
         const cum = g < 4 ? binomCdf(M.R[g] - 1, M.N - 1, p) : 1;
-        out[g] += (cum - prev) / M.sets.length; prev = cum;
+        out[g] += (cum - prev) / sets.length; prev = cum;
       }
     }
     return out;
@@ -598,19 +605,33 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   function semInfo(mid, fin, fstr) {
     const M = semModel(mid, fin), m = parse(mid.my), f = parse(fstr);
     if (!M || !m) return { M, m };
-    const at = x => semProbs(M, m.n + x);
-    const need = [0, 1, 2, 3].map(g => {
-      const ok = x => at(x).slice(0, g + 1).reduce((s, p) => s + p, 0) >= 0.5;
-      if (ok(0)) return { g, from: 0 };
-      if (!ok(100)) return { g, best: Math.round(at(100).slice(0, g + 1).reduce((s, p) => s + p, 0) * 100) };
+    const at = (x, sets) => semProbs(M, m.n + x, sets);
+    const upTo = (x, g, sets) => at(x, sets).slice(0, g + 1).reduce((a, p) => a + p, 0);
+    // g등급 이내일 확률이 50%를 넘는 가장 낮은 기말 점수 (0점도 되면 0, 100점도 안 되면 null)
+    const needOf = (g, sets) => {
+      if (upTo(0, g, sets) >= 0.5) return 0;
+      if (upTo(100, g, sets) < 0.5) return null;
       let a = 0, b = 100;
-      while (b - a > 0.5) { const c = (a + b) / 2; if (ok(c)) b = c; else a = c; }
-      return { g, from: Math.ceil(b) };
+      while (b - a > 0.5) { const c = (a + b) / 2; if (upTo(c, g, sets) >= 0.5) b = c; else a = c; }
+      return Math.ceil(b);
+    };
+    const pick = fn => M.sets.filter(fn);
+    const rankAt = x => Math.max(1, Math.round(M.above(x)));
+    const need = [0, 1, 2, 3].map(g => {
+      const from = needOf(g, M.sets);
+      if (from === null) return { g, from, best: Math.round(upTo(100, g, M.sets) * 100) };
+      if (from === 0) return { g, from };
+      // 등수: 난이도 차이 0인 경우에서, 관계(상관)마다 따로 구해 범위로
+      const rk = RHOS.map(r => needOf(g, pick(x => x.rho === r && x.dx === 0))).map(v => v === null ? 1 : rankAt(v));
+      const rank = (v => v === null ? 1 : rankAt(v))(needOf(g, pick(x => x.dx === 0)));
+      // 점수: 기말이 가장 쉬울 때와 어려울 때 (기말 데이터가 있으면 범위 없음)
+      const sr = fin ? null : [needOf(g, pick(x => x.dx === SHIFTS[0])), needOf(g, pick(x => x.dx === SHIFTS[SHIFTS.length - 1]))];
+      return { g, from, rank, rlo: Math.min(...rk), rhi: Math.max(...rk), sr };
     });
     const gp = f ? at(f.n) : null;
     return { M, m, f, gp, need };
   }
-  const semNote = fin => `'기말 몇 점 이상'은 그 등급 이상일 확률이 50%를 넘는 점수예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 기말이 중간보다 8점까지 쉽거나 어려운 경우를 섞었어요. "}중간을 잘 본 사람이 기말도 잘 보는 정도는 알 수 없어서 여러 경우를 섞어 계산했어요. 수행평가는 모두 같은 점수라고 보고 계산에서 뺐어요.`;
+  const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어려운 경우를 넣었어요. "}수행평가는 모두 같은 점수라고 보고 계산에서 뺐어요.`;
   function semHtml(mid, fin, fstr, note = true) {
     const s = semInfo(mid, fin, fstr);
     if (!s.M) return `<div class="sem"><p class="sem-f">중간 분포 정보가 아직 없어서 학기말 등급을 계산할 수 없어요.</p></div>`;
@@ -620,7 +641,11 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const rest = s.gp.map((p, k) => [k + 1, Math.round(p * 100)]).filter(([k, p]) => k !== g + 1 && p >= 1).map(([k, p]) => `${k}등급 ${p}%`).join(" · ");
       return `<div class="sem-res"><span class="gb g${g + 1}${pm < 70 ? " part" : ""}"><b>${g + 1}</b><i>${pm}%</i></span><p>기말 <b>${esc(s.f.raw)}</b>점이면 학기말 <b>${g + 1}등급</b> 가능성이 가장 커요 (${pm}%)${rest ? `<small>${rest}</small>` : ""}</p></div>`;
     })() : "";
-    const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 점이든 유력" : x.from != null ? `기말 <b>${x.from}</b>점 이상` : `100점이어도 어려움 <small>(${x.best}%)</small>`}</span>`).join("");
+    const scoreTxt = x => !x.sr ? `점수로는 ${x.from}점 이상`
+      : `점수로는 ${x.from}점 이상 · 난이도 따라 ${x.sr[0] ?? 0}~${x.sr[1] ?? 100}${x.sr[1] === null ? "점↑" : "점"}`;
+    const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 등이든 유력"
+      : x.from === null ? `기말 만점이어도 어려움 <small>(${x.best}%)</small>`
+      : `기말 <b>약 ${x.rank}등</b> 안${x.rlo !== x.rhi ? ` <small>(${x.rlo}~${x.rhi}등)</small>` : ""}<small class="sc">${scoreTxt(x)}</small>`}</span>`).join("");
     return `<div class="sem"><div class="sem-h">학기말 등급 예상 <small>중간 ${esc(s.m.raw)}점 기준 · 수행평가는 계산에서 뺐어요</small></div>
       ${res}<div class="need">${need}</div>
       ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
@@ -671,9 +696,11 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       .map(d => ({ ...d, my: scores[d.id]?.my || "", g: scores[d.id]?.g || "" }));
     if (isSoon) {
       $("summary").hidden = true;
-      $("examTitle").textContent = current + " · 학기말 미리 계산";
+      $("examTitle").textContent = current + " · 기말 목표 계산기";
       $("count").textContent = "기말 컷 준비 중";
-      $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요. 그 전까지는 기말 목표 점수를 넣어서 학기말 등급(중간 25% + 기말 25% + 수행 50%)을 미리 계산해 볼 수 있어요.</p><p class="sem-f">${semNote(null)}</p></div>`
+      $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요.</p>
+          <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수만 넣으면, 학기말 1·2등급을 받으려면 기말에서 몇 등 안에 들어야 하는지 알려드려요. 등수는 기말 난이도와 상관없어서 점수보다 믿을 만해요. 점수로 보면 기말 난이도에 따라 ±8점 정도 달라질 수 있어요.</p>
+          <p>기말 목표 점수도 넣으면 학기말 등급 확률까지 나와요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map(d => {
           const midIn = `<label>중간 점수<input class="myin" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" value="${esc(d.my)}"></label>`;
           const finIn = `<label>기말 목표<input class="myin" data-score="${esc(semKey(d))}" inputmode="decimal" placeholder="입력" value="${esc(scores[semKey(d)]?.my || "")}"></label>`;
