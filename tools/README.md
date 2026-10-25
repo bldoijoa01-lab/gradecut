@@ -1,0 +1,40 @@
+# 작업 안내
+
+사이트는 저장소 루트의 `index.html`(메인), `updates.html`(업데이트 내역)이고, 데이터는 `cuts.json`(등급컷·계산 결과)과 `updates.json`(업데이트 기록·제보 폼 주소)이다. main 브랜치에 들어가면 GitHub Pages가 1분쯤 뒤 배포한다.
+
+## 새 정보가 들어왔을 때 (컷·평균·점수대 인원)
+
+1. `cuts.json`에서 그 과목의 확정 정보를 고친다: `c`(1~4컷, 확정은 숫자, 추정은 계산이 `?`를 붙임), `avg`, `n`(응시 인원), `facts`, `at`(한국 시간), 맨 위 `updated`.
+2. `tools/estimate.py`의 `SPECS`에서 그 과목 설정을 고친다: `cuts=[(점수, 상위 비율)]`, `mean`, `counts=[(점수, 그 점수 이상 인원)]`, `est=[추정할 컷 번호(0부터)]`, `why`(사이트에 보이는 근거).
+   - 정보가 1컷 하나뿐이면 `cuts.json`에 `"weak": true` → 추정은 '추정 컷 보기'를 눌러야 보임.
+   - 친구 추정값처럼 약한 정보는 `soft=[(상위 비율, 점수, 표준편차)]`.
+3. 계산 (scipy 필요: `pip install scipy numpy`)
+   ```
+   cd tools && python3 estimate.py --cuts ../cuts.json --only <과목 id>
+   ```
+   여러 과목을 동시에 돌리면 `cuts.json`을 서로 덮어쓰니, 따로 돌릴 땐 복사본(`--cuts 복사본.json`)으로 돌린 뒤 그 과목 칸만 합친다.
+4. 확정 컷이 2개 이상이면 검증: `python3 estimate.py --validate --only <과목 id> --out 결과.json` (확정 컷을 하나씩 숨기고 맞혀 봄). 전 과목 결과는 `cuts.json`의 `validation`에 넣는다.
+5. `updates.json` 맨 앞에 기록 추가 (`kind`: `data`=등급컷, `feature`=기능). 시각은 지금보다 미래면 안 됨.
+6. `bash tools/tests/run.sh`로 점검 후 배포.
+
+## 제보 처리
+
+- 폼 응답은 구글 드라이브의 "등급컷 아카이브 정보 제보 (응답)" 시트에 쌓인다 (`tools/report_form.gs`로 만든 폼).
+- '어디서 들었나요?'가 선생님·성적표·공지면 확정 정보로, 친구·추측이면 `soft`처럼 약하게 넣거나 다른 제보와 맞는지 보고 넣는다.
+- 확률·점수 범위가 이미 아는 사실과 모순되면(예: 1컷보다 높은 2컷) 버린다.
+
+## 기말 컷이 나오면
+
+1. `python3 tools/add_exam.py --from "2026 2학기 중간" --to "2026 2학기 기말" --prefix 2026-2fin`
+   → 기말 탭이 '준비 중'(기말 목표 계산기)에서 일반 시험 탭으로 바뀌고, 과목마다 중간 → 기말 비교와 실제 기말 점수 기준 학기말 등급 예상이 나온다.
+   컷이 들어온 과목만 먼저 넣으려면 `--only 미적분I,영어II`.
+2. 위 '새 정보가 들어왔을 때'와 같이 컷을 넣고 `SPECS`에 `"2026-2fin-…"` 설정을 추가해 계산한다.
+3. `index.html`의 `UPCOMING`(준비 중 시험 목록)과 `PAIR`(기말 → 같은 학기 중간)를 다음 학기에 맞게 바꾼다.
+
+## 링크 미리보기·앱 아이콘
+
+`og.png`(카톡 미리보기 1200×630)와 `icon-192.png`·`icon-512.png`·`apple-touch-icon.png`는 `tools/og.html`을 고친 뒤 `node tools/make_assets.js`로 다시 만든다. 미리보기 주소는 `index.html`의 `og:url`·`og:image`.
+
+## 점검
+
+`bash tools/tests/run.sh` — 데이터 파일 형식, 화면 폭 360·375·414px의 오류·가로 넘침·말풍선, 등급 확률·확정·입력 검사, 값이 바뀔 때 막대가 이어서 움직이는지, 기말 목표 계산기, 가짜 기말 데이터로 중간 → 기말 비교, 옮기기 링크·테마·추정 숨김, 업데이트 내역·미리보기·앱 manifest를 확인한다 (Playwright 필요). 실제 컷 값에 기대는 검사가 있어서 컷이 바뀌면 같이 고쳐야 할 수 있다.

@@ -6,6 +6,19 @@
 <title>오송고 등급컷 아카이브</title>
 <meta name="description" content="오송고 2학년을 위한 과목별 등급컷과 내 예상 등급 계산">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23d43d63'/%3E%3Ctext x='16' y='23' font-size='19' font-family='monospace' font-weight='700' text-anchor='middle' fill='white'%3E1%3C/text%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="오송고 등급컷 아카이브">
+<meta property="og:title" content="오송고 2학년 등급컷 아카이브">
+<meta property="og:description" content="과목별 등급컷, 내 예상 등급과 확률, 기말 목표 계산기 · 오송고 2학년 시험 기준">
+<meta property="og:url" content="https://bldoijoa01-lab.github.io/gradecut/">
+<meta property="og:image" content="https://bldoijoa01-lab.github.io/gradecut/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#d43d63">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="등급컷">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
@@ -273,6 +286,7 @@ h1 span{color:var(--omr)}
 .cmp-n{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
 .school{display:inline-block;align-self:flex-start;margin:0;font-size:.8rem;font-weight:700;color:#fff;background:var(--omr);padding:2px 10px;border-radius:999px}
 .scope{margin:2px 0 0;font-size:.78rem;color:var(--muted);padding:6px 10px;border-left:3px solid var(--omr);background:var(--surface);border-radius:0 6px 6px 0;word-break:keep-all}
+.hometip{margin:8px 0 0;font-size:.78rem;color:var(--ink);padding:10px 12px;border-radius:12px;background:var(--surface);border:1px dashed var(--rule);word-break:keep-all}
 .credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
 .credit b{color:var(--ink);font-weight:700}
 .acc{display:inline-flex;align-items:baseline;gap:3px;font-size:.68rem;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;cursor:help;vertical-align:1px;color:#7a5200;background:#ffe27a;border:1px solid #f2c94c}
@@ -466,6 +480,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
     <p class="legend">과목 정확도 점수(0~100)는 얻은 정보로 계산이 얼마나 좁혀졌는지예요. 컷 확정 정도 60점(확정 컷은 만점, 추정 컷은 범위가 넓을수록 깎임) + 석차 범위 40점 <span class="acc">85↑ 매우 높음 · 70↑ 높음 · 50↑ 보통 · 30↑ 낮음 · 그 아래 매우 낮음</span></p>
     <p id="validation"></p>
+    <p class="hometip">📱 휴대폰 홈 화면에 추가하면 앱처럼 바로 열 수 있어요. 아이폰은 사파리 공유 버튼 → '홈 화면에 추가', 안드로이드는 크롬 메뉴(⋮) → '홈 화면에 추가'.</p>
     <p class="credit">제작·기획 <b>2612 박준선</b></p>
   </footer>
 </div>
@@ -1107,7 +1122,9 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   function semRow(fin) {
     const midExam = PAIR[fin.exam]; if (!midExam) return "";
     const mid = docs.find(x => x.exam === midExam && x.subject === fin.subject); if (!mid) return "";
-    return `<div class="semin">${perfIn(mid)}</div>` + semHtml({ ...mid, my: myScore(mid.id) }, fin, fin.my, true, rawOf(perfKey(mid)));
+    // 기말 컷을 아직 계산하지 않았으면(분포 없음) 준비 중 계산기처럼 '기말이 중간과 비슷하다'고 보고 계산
+    const finUse = binsOf(fin) ? fin : null;
+    return `<div class="semin">${perfIn(mid)}</div>` + semHtml({ ...mid, my: myScore(mid.id) }, finUse, fin.my, true, rawOf(perfKey(mid)));
   }
 
   const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
