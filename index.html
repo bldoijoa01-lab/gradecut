@@ -24,17 +24,21 @@
 <style>
 /* Layout: one column, OMR-sheet feel — exam chips, then a ruled table where each subject gets a 0–100 strip with its cut lines */
 :root{
-  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2230; --muted:#667085; --rule:#dfe3ea;
-  --omr:#d43d63; --omr-soft:#fbe7ec; --me:#2f6fd6;
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2230; --muted:#5f687c; --rule:#dfe3ea;
+  --omr:#c42f57; --omr-soft:#fbe7ec; --me:#2a64c8;
+  /* 글씨 색 대비 4.5:1 이상 (WCAG AA): 상태색(확정·주의·경고)과 진한 색 바탕 위 글씨(on-fill) */
+  --ok:#157a42; --warn:#925a00; --bad:#b8322a; --on-fill:#fff;
   --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#12151b; --surface:#1a1f27; --ink:#e6e9ef; --muted:#9aa3b2; --rule:#2c3340;
-  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark}}
+  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark;
+  --ok:#3ccf7e; --warn:#e9a53a; --bad:#ff6b5e; --on-fill:#1d0b12}}
 :root[data-theme="dark"]{
   --bg:#12151b; --surface:#1a1f27; --ink:#e6e9ef; --muted:#9aa3b2; --rule:#2c3340;
-  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark}
+  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark;
+  --ok:#3ccf7e; --warn:#e9a53a; --bad:#ff6b5e; --on-fill:#1d0b12}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
 .wrap{max-width:760px;margin:0 auto;padding-block:28px 56px;
@@ -46,7 +50,7 @@ h1 span{color:var(--omr)}
 .sub{color:var(--muted);font-size:.88rem;margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{font:inherit;font-size:.86rem;padding:6px 12px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
-.chip[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:#fff}
+.chip[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:var(--on-fill)}
 .chip:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 .summary{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px}
 .sum-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
@@ -55,7 +59,7 @@ h1 span{color:var(--omr)}
 .sum-avg b span{font-size:.9rem;color:var(--muted);margin-left:4px;font-family:var(--sans);font-weight:500}
 .sum-count{display:flex;gap:6px;flex-wrap:wrap}
 .sum-count span{font-size:.8rem;padding:4px 10px;border-radius:999px;border:1px solid var(--rule)}
-.sum-count span.c1{background:var(--omr);border-color:var(--omr);color:#fff}
+.sum-count span.c1{background:var(--omr);border-color:var(--omr);color:var(--on-fill)}
 .sum-count span.c2{border-color:var(--omr);color:var(--omr)}
 .sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .tile{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;min-width:0}
@@ -67,9 +71,9 @@ h1 span{color:var(--omr)}
 .tile.u .tg::after{content:"?";font-size:.45em;vertical-align:top}
 .tile .ts{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;white-space:nowrap}
 .tile .tgap{font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.tile .tp{font-family:var(--sans);font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;color:var(--omr);background:color-mix(in srgb,var(--omr) 12%,transparent);font-variant-numeric:tabular-nums}
-.tile .tp.lo{color:#c27a0b;background:rgba(194,122,11,.15)}
-.tile .tp.sure{color:#1e9a55;background:rgba(30,154,85,.13)}
+.tile .tp{font-family:var(--sans);font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;color:var(--omr);background:color-mix(in srgb,var(--omr) 10%,var(--surface));font-variant-numeric:tabular-nums}
+.tile .tp.lo{color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,var(--surface))}
+.tile .tp.sure{color:var(--ok);background:color-mix(in srgb,var(--ok) 13%,var(--surface))}
 .sum-rng{margin:0;font-size:.82rem}
 .sum-rng b{font-family:var(--mono);color:var(--omr);font-size:1.05em}
 .sum-rng small{display:block;color:var(--muted);font-size:.72rem}
@@ -84,7 +88,7 @@ h1 span{color:var(--omr)}
 .gb{flex:none;width:60px;height:60px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid var(--rule);color:var(--muted);box-sizing:border-box}
 .gb b{font-family:var(--mono);font-size:1.95rem;line-height:1;font-weight:600}
 .gb i{font-style:normal;font-weight:500;font-size:.62rem;letter-spacing:.05em;margin-top:3px}
-.gb.g1{background:var(--omr);border-color:var(--omr);color:#fff}
+.gb.g1{background:var(--omr);border-color:var(--omr);color:var(--on-fill)}
 .gb.g2{border-color:var(--omr);color:var(--omr)}
 .gb.g3,.gb.g4,.gb.g5{border-color:var(--muted);color:var(--ink)}
 .gb.part{border-style:dashed}
@@ -185,7 +189,7 @@ h1 span{color:var(--omr)}
 .promo .btn{background:#fff;color:#d43d63}
 .promo .icon{color:#fff;opacity:.85}
 .promo .icon:hover{border-color:rgba(255,255,255,.5);color:#fff}
-.chip.soon em.open{background:var(--omr);color:#fff}
+.chip.soon em.open{background:var(--omr);color:var(--on-fill)}
 @media (prefers-reduced-motion:no-preference){.chip.soon em.open{animation:blink 1.6s ease-in-out infinite}}
 @keyframes blink{50%{opacity:.45}}
 .sum-go{font:inherit;font-size:.86rem;font-weight:700;padding:10px 12px;border-radius:10px;border:1.5px dashed var(--omr);background:none;color:var(--omr);cursor:pointer;text-align:center}
@@ -210,7 +214,7 @@ h1 span{color:var(--omr)}
 .need button.nb i{display:block;font-style:normal;font-size:.68rem;font-weight:700;color:var(--omr);margin-top:4px}
 @media (hover:hover){.need button.nb:hover{border-color:var(--omr)}}
 .hero{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:14px;border-radius:10px;background:var(--omr-soft)}
-.hero h3{margin:0;font-size:1.05rem;color:var(--omr)}
+.hero h2{margin:0;font-size:1.05rem;color:var(--omr)}
 .hero p{margin:0;font-size:.86rem;color:var(--ink);word-break:keep-all}
 .sem-f{font-size:.72rem;color:var(--muted);margin:0}
 .sp{display:flex;flex-direction:column;gap:6px}
@@ -236,7 +240,7 @@ h1 span{color:var(--omr)}
 .seg .thumb{position:absolute;top:0;bottom:0;left:0;width:50%;border-radius:999px;background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)))}
 .seg button{position:relative;z-index:1}
 .seg button{font:inherit;font-size:.82rem;padding:6px 14px;border:0;background:none;color:var(--omr);cursor:pointer}
-.seg button[aria-pressed="true"]{background:none;color:#fff;font-weight:700}
+.seg button[aria-pressed="true"]{background:none;color:var(--on-fill);font-weight:700}
 .rr{display:flex;justify-content:space-between;font:500 .64rem var(--mono);color:var(--muted);margin-top:-2px}
 .sp-h small{font-size:.92em}
 .needs{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px dashed var(--rule)}
@@ -248,16 +252,16 @@ h1 span{color:var(--omr)}
 .semin{grid-column:1/-1;display:flex;gap:10px}
 .semin label{flex:1;max-width:9em}
 .sem-f.warn{color:var(--omr)}
-.myin.bad{border:2px solid #d6453b;color:#d6453b;background:rgba(214,69,59,.08)}
-.badmsg{display:block;font-size:.66rem;font-weight:700;color:#d6453b;margin-top:2px;white-space:normal;text-align:center}
+.myin.bad{border:2px solid var(--bad);color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+.badmsg{display:block;font-size:.66rem;font-weight:700;color:var(--bad);margin-top:2px;white-space:normal;text-align:center}
 .semin .myin{max-width:none}
 .soonhead{padding:16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:4px}
 .soonhead b{font-family:var(--mono);font-size:.95rem;letter-spacing:.12em;color:var(--omr)}
 .soonhead p{margin:0;color:var(--muted);font-size:.84rem;word-break:keep-all}
-.weaknote{grid-column:1/-1;margin:0;font-size:.76rem;color:#c27a0b}
+.weaknote{grid-column:1/-1;margin:0;font-size:.76rem;color:var(--warn)}
 .news{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
 .news-h{display:flex;align-items:center;gap:8px;font-size:.88rem}
-.news-h .new{font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--omr);color:#fff}
+.news-h .new{font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--omr);color:var(--on-fill)}
 .news ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .news li{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:8px;font-size:.84rem;min-width:0}
 .news time{font:500 .72rem var(--mono);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -282,16 +286,16 @@ h1 span{color:var(--omr)}
 .cmp span b{font-family:var(--mono);font-size:1.05rem}
 .cmp i{font-style:normal;color:var(--muted)}
 .cmp em{font-style:normal;font-size:.8rem;font-weight:700;margin-left:auto}
-.cmp em.up{color:#1e9a55}.cmp em.down{color:#d6453b}.cmp em.same{color:var(--muted)}
+.cmp em.up{color:var(--ok)}.cmp em.down{color:var(--bad)}.cmp em.same{color:var(--muted)}
 .cmp-n{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
-.school{display:inline-block;align-self:flex-start;margin:0;font-size:.8rem;font-weight:700;color:#fff;background:var(--omr);padding:2px 10px;border-radius:999px}
+.school{display:inline-block;align-self:flex-start;margin:0;font-size:.8rem;font-weight:700;color:var(--on-fill);background:var(--omr);padding:2px 10px;border-radius:999px}
 .scope{margin:2px 0 0;font-size:.78rem;color:var(--muted);padding:6px 10px;border-left:3px solid var(--omr);background:var(--surface);border-radius:0 6px 6px 0;word-break:keep-all}
 .hometip{margin:8px 0 0;font-size:.78rem;color:var(--ink);padding:10px 12px;border-radius:12px;background:var(--surface);border:1px dashed var(--rule);word-break:keep-all}
 .credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
 .credit b{color:var(--ink);font-weight:700}
 .acc{display:inline-flex;align-items:baseline;gap:3px;font-size:.68rem;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;cursor:help;vertical-align:1px;color:#7a5200;background:#ffe27a;border:1px solid #f2c94c}
 .acc b{font-family:var(--mono);font-size:1.05em}
-.acc em{font-style:normal;font-weight:500;opacity:.85}
+.acc em{font-style:normal;font-weight:500}
 .acc.a0{color:var(--muted);background:var(--bg);border-color:var(--rule)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .acc:not(.a0){color:#ffe27a;background:rgba(255,214,90,.14);border-color:rgba(255,214,90,.45)}}
 :root[data-theme="dark"] .acc:not(.a0){color:#ffe27a;background:rgba(255,214,90,.14);border-color:rgba(255,214,90,.45)}
@@ -302,7 +306,7 @@ h1 span{color:var(--omr)}
 .themes button{font:inherit;font-size:.76rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border:0;border-radius:999px;background:none;color:var(--omr);cursor:pointer;white-space:nowrap}
 .themes button svg{width:14px;height:14px}
 .themes button{position:relative;z-index:1;justify-content:center}
-.themes button[aria-pressed="true"]{background:none;color:#fff}
+.themes button[aria-pressed="true"]{background:none;color:var(--on-fill)}
 .themes .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / 3);border-radius:999px;background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)));box-shadow:0 3px 10px color-mix(in srgb,var(--omr) 35%,transparent)}
 .themes button:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 @media (max-width:400px){.themes button{padding:5px 7px;font-size:.72rem}}
@@ -310,7 +314,7 @@ h1 span{color:var(--omr)}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.45s;animation-timing-function:ease}
 html.theme-fade,html.theme-fade *,html.theme-fade *::before,html.theme-fade *::after{transition:background-color .45s ease,color .45s ease,border-color .45s ease,fill .45s ease,stroke .45s ease,box-shadow .45s ease!important}
 @media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}html.theme-fade,html.theme-fade *{transition:none!important}}
-.newb{font-style:normal;font-size:.6rem;font-weight:700;color:#fff;background:var(--omr);padding:1px 6px;border-radius:999px;margin-left:6px;vertical-align:3px}
+.newb{font-style:normal;font-size:.6rem;font-weight:700;color:var(--on-fill);background:var(--omr);padding:1px 6px;border-radius:999px;margin-left:6px;vertical-align:3px}
 .mytools{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
 .mt-h{display:flex;align-items:baseline;gap:8px}
 .mt-h b{font-size:.92rem}
@@ -318,12 +322,12 @@ html.theme-fade,html.theme-fade *,html.theme-fade *::before,html.theme-fade *::a
 .mt-b{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .tbtn{font:inherit;font-size:.8rem;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 6px;border-radius:10px;border:1.5px solid var(--me);background:rgba(47,111,214,.07);color:var(--me);cursor:pointer;min-width:0;text-align:center;word-break:keep-all}
 .tbtn svg{width:20px;height:20px}
-.tbtn.danger{border-color:#d6453b;color:#d6453b;background:rgba(214,69,59,.07)}
+.tbtn.danger{border-color:var(--bad);color:var(--bad);background:color-mix(in srgb,var(--bad) 7%,transparent)}
 .tbtn:focus-visible{outline:2px solid var(--me);outline-offset:2px}
-.tbtn[aria-expanded="true"]{background:var(--me);color:#fff}
-.clearask{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid #d6453b;border-radius:10px}
+.tbtn[aria-expanded="true"]{background:var(--me);color:var(--on-fill)}
+.clearask{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--bad);border-radius:10px}
 .clearask p{margin:0;font-size:.84rem}
-.btn.danger{background:#d6453b}
+.btn.danger{background:var(--bad)}
 .move{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--me);border-radius:10px;background:var(--surface)}
 .move p{margin:0;color:var(--ink);font-size:.84rem}
 .move-r{display:flex;gap:8px}
@@ -343,7 +347,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 .grid4 input{font-family:var(--mono);text-align:center}
 .hint{font-size:.76rem;color:var(--muted);margin:0}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
-.btn{font:inherit;font-weight:700;font-size:.9rem;padding:8px 16px;border-radius:8px;border:0;background:var(--omr);color:#fff;cursor:pointer}
+.btn{font:inherit;font-weight:700;font-size:.9rem;padding:8px 16px;border-radius:8px;border:0;background:var(--omr);color:var(--on-fill);cursor:pointer}
 .btn.ghost{background:none;color:var(--muted);border:1px solid var(--rule);font-weight:500}
 .foot{display:flex;flex-direction:column;gap:6px;font-size:.78rem;color:var(--muted)}
 .foot p{margin:0}
@@ -435,7 +439,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 </script>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
   <header>
     <p class="school">오송고 2학년을 위한</p>
     <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><div class="themes" id="theme" role="group" aria-label="화면 테마"><span class="thumb" aria-hidden="true"></span><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
@@ -483,7 +487,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     <p class="hometip">📱 휴대폰 홈 화면에 추가하면 앱처럼 바로 열 수 있어요. 아이폰은 사파리 공유 버튼 → '홈 화면에 추가', 안드로이드는 크롬 메뉴(⋮) → '홈 화면에 추가'.</p>
     <p class="credit">제작·기획 <b>2612 박준선</b></p>
   </footer>
-</div>
+</main>
 
 <script>
 (() => {
@@ -712,7 +716,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       if (d.tab_min && x < d.tab_min) return { below: true, frac: d.tab[Math.round(d.tab_min)], N, model: true };
       const lo = Math.floor(x), hi = Math.min(100, lo + 1), t = x - lo;
       const frac = d.tab[lo] * (1 - t) + d.tab[hi] * t;
-      return { frac, N, model: true, conf: d.rk_conf, rank: N ? Math.max(1, Math.round(frac * N)) : null };
+      return { frac, N, model: true, rank: N ? Math.max(1, Math.round(frac * N)) : null };
     }
     const pts = [[100, 0]];
     const fr = [0.10, 0.34, 0.66, 0.90];
@@ -899,9 +903,11 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       : `<div class="drow"><span class="r">${esc(x.r)}</span><span class="bar"><i style="width:${x.n / max * 100}%"></i></span><span class="n">${x.n}명</span></div>`).join("") + `</div>`;
   }
 
+  let dtf = null;   // 날짜 형식기는 만들기가 느려서 한 번만
   const fmt = (iso, short) => {
     const d = new Date(iso); if (isNaN(d)) return "";
-    const p = new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(d);
+    dtf = dtf || new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", weekday: "short", hour: "numeric", minute: "2-digit", hour12: true });
+    const p = dtf.formatToParts(d);
     const g = t => p.find(x => x.type === t)?.value || "";
     return short ? `${g("month")}/${g("day")} ${g("dayPeriod")} ${g("hour")}:${g("minute")}`
                  : `${g("month")}월 ${g("day")}일(${g("weekday")}) ${g("dayPeriod")} ${g("hour")}:${g("minute")}`;
@@ -919,11 +925,22 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const Phi = z => { const x = Math.abs(z) / Math.SQRT2, t = 1 / (1 + 0.3275911 * x);
     const e = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
     return 0.5 * (1 + (z < 0 ? -e : e)); };
-  function binomCdf(k, n, p) {
-    if (k < 0) return 0; if (k >= n || p <= 0) return 1; if (p >= 1) return 0;
-    let lp = n * Math.log1p(-p), s = 0; const r = Math.log(p) - Math.log1p(-p);
-    for (let i = 0; i <= k; i++) { s += Math.exp(lp); lp += Math.log((n - i) / (i + 1)) + r; }
-    return Math.min(1, s);
+  // 이항(n, p)에서 R[g]-1 이하일 확률들. R은 커지는 순서라 한 번 훑으면서 경계마다 기록 (log 비율 표는 n마다 한 번)
+  const lrCache = {};
+  function binomCdfs(R, n, p) {
+    let lr = lrCache[n];
+    if (!lr) { lr = lrCache[n] = new Float64Array(Math.max(0, n)); for (let i = 0; i < n; i++) lr[i] = Math.log((n - i) / (i + 1)); }
+    const out = new Array(R.length), r = Math.log(p) - Math.log1p(-p);
+    let lp = n * Math.log1p(-p), s = 0, i = 0;
+    for (let g = 0; g < R.length; g++) {
+      const k = R[g] - 1;
+      if (k < 0) { out[g] = 0; continue; }
+      if (k >= n || p <= 0) { out[g] = 1; continue; }
+      if (p >= 1) { out[g] = 0; continue; }
+      for (; i <= k; i++) { s += Math.exp(lp); lp += lr[i] + r; }
+      out[g] = Math.min(1, s);
+    }
+    return out;
   }
   // 분포 그래프 구간 인원 → 누적확률 u의 점수 (구간 안은 고르게)
   function invOf(d) {
@@ -931,7 +948,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const tot = bins.reduce((s, b) => s + b.n, 0); if (!tot) return null;
     return u => { let t = u * tot; for (const b of bins) { if (t <= b.n && b.n) return b.lo + t / b.n * 5; t -= b.n; } return 100; };
   }
-  const semCache = {};
+  const semCache = {}, needCache = {};
   function semModel(mid, fin) {
     const key = mid.id + (mid.hiddenEst ? "~" : "") + "|" + (fin ? fin.id : "");   // 추정 숨김 보기는 따로 (분포가 없음)
     if (key in semCache) return semCache[key];
@@ -947,9 +964,11 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     }
     const sets = [];
     for (const rho of RHOS) {
-      const c = Math.sqrt(1 - rho * rho), Y = Float64Array.from(Z1, (z, i) => jf(Phi(rho * z + c * Z3[i])));
+      const c = Math.sqrt(1 - rho * rho), Y = new Float64Array(DRAWS);
+      for (let i = 0; i < DRAWS; i++) Y[i] = jf(Phi(rho * Z1[i] + c * Z3[i]));
       for (const dx of fin ? [0] : SHIFTS) for (const k of fin ? [1] : SCALES) {
-        const s = Float64Array.from(Y, (y, i) => X[i] + Math.max(0, Math.min(100, mu + k * (y - mu) + dx)));
+        const s = new Float64Array(DRAWS);
+        for (let i = 0; i < DRAWS; i++) s[i] = X[i] + Math.max(0, Math.min(100, mu + k * (Y[i] - mu) + dx));
         sets.push({ s: s.sort(), rho, dx, k });
       }
     }
@@ -959,7 +978,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     // 기말 r등 자리의 점수 (난이도 차이 없고 퍼짐 그대로일 때): above(x) = r 인 x
     const scoreAtRank = rr => { let a = 0, b = 100; if (above(0) <= rr) return 0;
       for (let i = 0; i < 40; i++) { const c = (a + b) / 2; if (above(c) > rr) a = c; else b = c; } return (a + b) / 2; };
-    return semCache[key] = { sets, N, mu, above, scoreAtRank, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
+    return semCache[key] = { key, sets, N, mu, above, scoreAtRank, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
   }
   // 합계 s점일 때 학기말 1~5등급 확률: 나보다 높은 사람 수 ~ 이항(N-1, p), 등수 ≤ R_g 이면 g등급 이내
   function semProbs(M, s, sets = M.sets) {
@@ -967,10 +986,10 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     for (const { s: set } of sets) {
       let a = 0, b = set.length;
       while (a < b) { const c = (a + b) >> 1; if (set[c] <= s) a = c + 1; else b = c; }
-      const p = (set.length - a) / set.length;
+      const p = (set.length - a) / set.length, cums = binomCdfs(M.R, M.N - 1, p);
       let prev = 0;
       for (let g = 0; g < 5; g++) {
-        const cum = g < 4 ? binomCdf(M.R[g] - 1, M.N - 1, p) : 1;
+        const cum = g < 4 ? cums[g] : 1;
         out[g] += (cum - prev) / sets.length; prev = cum;
       }
     }
@@ -995,7 +1014,8 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     };
     const pick = fn => M.sets.filter(fn);
     const rankAt = (x, k = 1) => Math.max(1, Math.round(M.above(x, k)));
-    const need = [0, 1, 2, 3].map(g => {
+    const nk = M.key + "|" + (m.n + adj);
+    const need = needCache[nk] || (needCache[nk] = [0, 1, 2, 3].map(g => {
       const from = needOf(g, M.sets);
       if (from === null) return { g, from, best: Math.round(upTo(100, g, M.sets) * 100) };
       if (from === 0) return { g, from };
@@ -1014,7 +1034,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         sr = [ok.length ? Math.min(...ok) : null, v.includes(null) ? null : Math.max(...ok)];
       }
       return { g, from, rank, rlo: Math.min(...rk), rhi: Math.max(...rk), sr };
-    });
+    }));
     const gp = f ? at(f.n) : null;
     // 내 학기말 원점수 = 중간×25% + 기말×25% + 수행(50점 만점) — 계산만, 원점수 컷은 예측 안 함
     const myRaw = f ? perf + (m.n + f.n) / 4 : null;
@@ -1131,6 +1151,21 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   // 아직 컷이 없는 다가오는 시험: 칩만 보여주고 '준비 중' 안내 (cuts.json에 과목이 생기면 자동으로 일반 시험이 됨)
   const UPCOMING = ["2026 2학기 기말"];
 
+  // 기말 목표 계산기는 처음 열 때 과목마다 다른 학생 점수를 수천 개씩 뽑아서 느린 휴대폰에선 1~2초 걸림.
+  // 첫 화면이 다 뜬 뒤 쉬는 시간에 내 과목을 하나씩 미리 계산해 두면 누르자마자 열림 (결과는 같은 저장소에 들어감)
+  function warmSem() {
+    const fin = UPCOMING.find(e => PAIR[e] && !exams().includes(e)); if (!fin) return;
+    const idle = window.requestIdleCallback ? f => requestIdleCallback(f, { timeout: 4000 }) : f => setTimeout(f, 300);
+    const todo = docs.filter(d => d.exam === PAIR[fin] && (d.common || (sel || []).includes(d.subject)));
+    const next = () => {
+      const d = todo.shift(); if (!d) return;
+      const v = viewOf({ ...d, my: myScore(d.id) });
+      if (semModel(v, null) && parse(v.my)) semInfo(v, null, "", rawOf(perfKey(v)));
+      idle(next);
+    };
+    idle(next);
+  }
+
   // 그린 뒤: 숫자 카운트, 방금 고친 과목(.fresh) 표시 해제
   let freshId = null;
   function render() { renderCore(); animateNumbers(); moveAnim(); slideRanges(); freshId = null; }
@@ -1164,13 +1199,17 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const prevMv = {};
   function moveAnim(root = document) {
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 이전 자리를 모두 먼저 적용하고 배치 계산은 한 번만 (요소마다 하면 느린 휴대폰에서 버벅임)
+    const todo = [];
     root.querySelectorAll("[data-mv]").forEach(el => {
       const k = el.dataset.mv, now = el.getAttribute("style") || "", before = prevMv[k];
       prevMv[k] = now;
       if (reduce || before == null || before === now) return;
-      el.setAttribute("style", before); void el.offsetWidth;
-      el.classList.add("mv"); el.setAttribute("style", now);
+      el.setAttribute("style", before); todo.push([el, now]);
     });
+    if (!todo.length) return;
+    void document.body.offsetWidth;
+    todo.forEach(([el, now]) => { el.classList.add("mv"); el.setAttribute("style", now); });
   }
   const prevNums = {}, runningNums = {};
   const cntAttr = (p, key) => { const t = pctTxt(p); return /^\d+%$/.test(t) ? ` data-count="${parseInt(t)}" data-suf="%" data-key="${esc(key)}"` : ""; };
@@ -1232,7 +1271,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       $("examTitle").textContent = current + " · 기말 목표 계산기";
       $("count").textContent = "기말 컷 준비 중";
       $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요.</p>
-          <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수를 넣고 기말 목표를 정하면, 학기말 1등급 확률을 바로 알려드려요. 막대를 움직이면서 기말에서 얼마나 해야 하는지 감을 잡아 보세요.</p>
+          <div class="hero"><h2>기말 목표 계산기</h2><p>중간 점수를 넣고 기말 목표를 정하면, 학기말 1등급 확률을 바로 알려드려요. 막대를 움직이면서 기말에서 얼마나 해야 하는지 감을 잡아 보세요.</p>
           <div class="seg" role="group" aria-label="기말 목표 정하는 방법"><span class="thumb" aria-hidden="true" data-mv="segthumb" style="transform:translateX(${semMode === "score" ? 100 : 0}%)"></span><button type="button" data-semmode="rank" aria-pressed="${semMode === "rank"}">목표 등수로</button><button type="button" data-semmode="score" aria-pressed="${semMode === "score"}">목표 점수로</button></div>
           <p class="sem-f">${semMode === "rank" ? "등수로 정하면 기말이 쉽든 어렵든 같은 자리라서 확률이 더 정확해요." : "점수로 정하면 기말이 쉬운지 어려운지에 따라 같은 점수도 자리가 달라져서, 그만큼 확률이 덜 확실해요."}</p>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
@@ -1407,7 +1446,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const rowsN = Math.ceil(S.tiles.length / cols), H = top + rowsN * (th + gap) + 110;
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const c = cv.getContext("2d"), sans = '"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif', mono = '"IBM Plex Mono", ui-monospace, monospace';
-    const OMR = "#d43d63", INK = "#1b2230", MUTED = "#667085", RULE = "#dfe3ea", SOFT = "#fbe7ec";
+    const OMR = "#c42f57", INK = "#1b2230", MUTED = "#5f687c", RULE = "#dfe3ea", SOFT = "#fbe7ec";
     const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
     c.fillStyle = "#f5f6f8"; c.fillRect(0, 0, W, H);
     c.fillStyle = OMR; c.font = `700 24px ${sans}`; c.fillText("오송고 2학년", pad, 52);
@@ -1424,7 +1463,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       c.fillStyle = t.g && t.g <= 2 ? OMR : MUTED; c.font = `600 76px ${mono}`; c.fillText(t.g ? String(t.g) + (t.below ? "↓" : t.u ? "?" : "") : "?", x + 30, y + 100);
       c.fillStyle = INK; c.font = `700 30px ${sans}`; c.fillText(t.name.length > 9 ? t.name.slice(0, 9) + "…" : t.name, x + 150, y + 68);
       c.fillStyle = MUTED; c.font = `500 26px ${mono}`; c.fillText(t.score + "점", x + 150, y + 110);
-      if (t.prob) { const sw = c.measureText(t.score + "점").width; c.fillStyle = t.prob === "확정" ? "#1e9a55" : OMR; c.font = `700 24px ${sans}`; c.fillText(t.prob === "확정" || t.prob === "이하" ? t.prob : "확률 " + t.prob, x + 150 + sw + 16, y + 110); }
+      if (t.prob) { const sw = c.measureText(t.score + "점").width; c.fillStyle = t.prob === "확정" ? "#157a42" : OMR; c.font = `700 24px ${sans}`; c.fillText(t.prob === "확정" || t.prob === "이하" ? t.prob : "확률 " + t.prob, x + 150 + sw + 16, y + 110); }
     });
     c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
     c.fillText("추정 컷이 들어간 과목은 실제 컷이 나오면 바뀔 수 있어요.", pad, H - 60);
@@ -1475,6 +1514,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     $("updated").textContent = when ? `마지막 업데이트 ${when} (한국 시간)` : "";
     try { localStorage.setItem(VKEY, j.updated || new Date().toISOString()); } catch {}
     render();
+    setTimeout(warmSem, 3000);
   }).catch(() => {
     $("examTitle").textContent = "등급컷을 불러오지 못했어요";
     $("rows").innerHTML = `<div class="empty">새로고침해 주세요.</div>`;
