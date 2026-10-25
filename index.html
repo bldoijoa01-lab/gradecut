@@ -234,6 +234,8 @@ h1 span{color:var(--omr)}
 .cmp-n{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
 .school{display:inline-block;align-self:flex-start;margin:0;font-size:.8rem;font-weight:700;color:#fff;background:var(--omr);padding:2px 10px;border-radius:999px}
 .scope{margin:2px 0 0;font-size:.78rem;color:var(--muted);padding:6px 10px;border-left:3px solid var(--omr);background:var(--surface);border-radius:0 6px 6px 0;word-break:keep-all}
+.credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
+.credit b{color:var(--ink);font-weight:700}
 .toprow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
 .toprow h1{white-space:nowrap}
 .themes{display:inline-flex;flex:none;padding:3px;gap:2px;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
@@ -363,6 +365,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
     <p class="legend">석차 신뢰도는 90% 범위가 얼마나 좁은지로 정해요 <span class="conf hi">높음</span> 범위 폭이 응시 인원의 6% 이하 <span class="conf mid">중간</span> 12% 이하 <span class="conf lo">낮음</span> 그보다 넓음</p>
     <p id="validation"></p>
+    <p class="credit">제작·기획 <b>2612 박준선</b></p>
   </footer>
 </div>
 

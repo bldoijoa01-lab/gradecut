@@ -61,6 +61,8 @@ h1 span{color:var(--omr)}
 .tag.f{background:rgba(47,111,214,.12);color:var(--me)}
 .report{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;font-size:.86rem}
 .report a{color:#fff;background:var(--omr);padding:6px 14px;border-radius:999px;text-decoration:none;font-weight:700}
+.credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
+.credit b{color:var(--ink);font-weight:700}
 .empty{color:var(--muted);text-align:center;padding:24px 0;font-size:.9rem}
 </style>
 <script>
@@ -81,6 +83,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   </div>
   <section class="report" id="report" hidden><span>알고 있는 컷·평균·점수대 인원이 있으면 알려주세요. 이름은 받지 않아요.</span><a id="reportLink" href="#" target="_blank" rel="noopener">정보 제보하기</a></section>
   <div id="list"><p class="empty">불러오는 중이에요.</p></div>
+  <p class="credit">제작·기획 <b>2612 박준선</b></p>
 </div>
 <script>
 (() => {
