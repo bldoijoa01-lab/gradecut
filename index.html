@@ -222,6 +222,23 @@ h1 span{color:var(--omr)}
 .cta .btn.off{background:var(--rule);color:var(--muted);cursor:default}
 .ask{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
 .ask a{color:var(--omr);font-weight:700}
+.cmp{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:10px 12px;border:1px solid var(--rule);border-radius:10px}
+.cmp span{display:flex;flex-direction:column;line-height:1.3}
+.cmp span small{font-size:.7rem;color:var(--muted)}
+.cmp span b{font-family:var(--mono);font-size:1.05rem}
+.cmp i{font-style:normal;color:var(--muted)}
+.cmp em{font-style:normal;font-size:.8rem;font-weight:700;margin-left:auto}
+.cmp em.up{color:#1e9a55}.cmp em.down{color:#d6453b}.cmp em.same{color:var(--muted)}
+.cmp-n{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.icon.theme{border-color:var(--rule);white-space:nowrap}
+.newb{font-style:normal;font-size:.6rem;font-weight:700;color:#fff;background:var(--omr);padding:1px 6px;border-radius:999px;margin-left:6px;vertical-align:3px}
+.sum-f{display:flex;justify-content:flex-end}
+.sum-f .icon{border-color:var(--rule)}
+.move{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:10px;background:var(--surface)}
+.move p{margin:0;color:var(--ink)}
+.move-r{display:flex;gap:8px}
+.move-r input{font-family:var(--mono);font-size:.72rem}
 .note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
 .empty{padding:28px 16px;color:var(--muted);text-align:center;font-size:.9rem}
 form{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -273,11 +290,15 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 .alias{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:4px}
 @media (prefers-reduced-motion:no-preference){.chip,.icon{transition:background .15s,border-color .15s}}
 </style>
+<script>
+// 화면 테마(자동/라이트/다크): 그리기 전에 적용해서 깜빡임 없게
+try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+</script>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>등급컷 <span>아카이브</span></h1>
+    <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><button class="icon theme" type="button" id="theme" aria-label="화면 테마 바꾸기">화면: 자동</button></div>
     <p class="sub">2학년 · 5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
     <p class="asof" id="asof">등급컷 불러오는 중</p>
     <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
@@ -303,7 +324,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
     <p class="legend">석차 신뢰도는 90% 범위가 얼마나 좁은지로 정해요 <span class="conf hi">높음</span> 범위 폭이 응시 인원의 6% 이하 <span class="conf mid">중간</span> 12% 이하 <span class="conf lo">낮음</span> 그보다 넓음</p>
     <p id="validation"></p>
-    <p><button class="icon" type="button" id="clear">내 점수 모두 지우기</button><span id="clearAsk" hidden> 정말 지울까요? <button class="icon danger" type="button" id="clearYes">지우기</button><button class="icon" type="button" id="clearNo">취소</button></span></p>
+    <div class="move" id="move" hidden><p>이 링크를 다른 기기에서 열면 내 점수와 선택과목이 그대로 옮겨져요. <b>링크를 받은 사람도 내 점수를 볼 수 있으니</b> 나만 쓰세요.</p><div class="move-r"><input id="moveLink" readonly aria-label="옮기기 링크"><button class="btn" type="button" id="moveCopy">복사</button></div></div>
+    <p><button class="icon" type="button" id="moveBtn">다른 기기로 점수 옮기기</button> · <button class="icon" type="button" id="clear">내 점수 모두 지우기</button><span id="clearAsk" hidden> 정말 지울까요? <button class="icon danger" type="button" id="clearYes">지우기</button><button class="icon" type="button" id="clearNo">취소</button></span></p>
   </footer>
 </div>
 
@@ -311,7 +333,11 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 (() => {
   const $ = id => document.getElementById(id);
   const LKEY = "gradecut-my-scores";
-  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false, reportUrl = "";
+  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false, reportUrl = "", lastSum = null;
+  // 과목별 NEW: 지난 방문 시각보다 나중에 컷이 바뀐 과목 (처음 방문이면 표시 안 함)
+  const VKEY = "gradecut-last-visit";
+  let prevVisit = null; try { prevVisit = localStorage.getItem(VKEY); } catch {}
+  const isNewDoc = d => !!(prevVisit && d.at && new Date(d.at) > new Date(prevVisit));
   // 정보 제보: updates.json의 report_url (비어 있으면 '준비 중')
   function renderCta() {
     $("cta").innerHTML = `<div><b>등급컷 제보 받아요</b><p>알고 있는 컷·평균·점수대 인원(예: 90점 이상 5명)이 있으면 알려주세요. 하나만 더 알아도 추정 범위가 확 좁아져요. 이름은 받지 않아요.</p></div>`
@@ -431,12 +457,17 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const c1 = parse((d.c || [])[0]);
       const gap = c1 && !(d.c?.[0] || "").includes("↑") ? (m.n - c1.n) : null;
       const gapTxt = gap === null ? "" : ` · 1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
-      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u && g.tip ? ` tabindex="0" data-tip="${esc(g.tip)}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}</span></div>`;
+      const mid = midOf(d), mg = mid && parse(mid.my) ? gradeInfo(mid) : null;
+      const midTxt = mg ? ` · 중간 ${mg.n}${mg.below ? "↓" : ""}` : "";
+      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u && g.tip ? ` tabindex="0" data-tip="${esc(g.tip)}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}${midTxt}</span></div>`;
     }).join("");
     const chips = Object.keys(counts).sort().map(k => `<span class="c${k}">${k}등급 ${counts[k]}과목</span>`).join("");
+    lastSum = { exam: current, avg: wavg || avg, label: wavg ? "학점 가중 평균 등급" : "평균 등급", sub: wavg ? `${graded.length}과목 · ${totalCr}학점` : `${graded.length}과목`,
+      tiles: items.map(({ d, g, m }) => ({ name: d.alias || d.subject, g: g ? g.n : null, u: !!g?.u, score: m.raw })) };
     return `<div class="sum-head"><div class="sum-avg">${wavg
       ? `<small>내 평균 등급 · 학점 가중</small><b>${wavg}<span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
-      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div><div class="sum-grid">${tiles}</div>`;
+      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div><div class="sum-grid">${tiles}</div>
+      <div class="sum-f"><button class="icon" type="button" id="saveImg">이미지로 저장</button></div>`;
   }
 
   function badge(d) {
@@ -799,6 +830,26 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   const perfKey = mid => "perf-" + mid.id;
   const semrKey = mid => "semr-" + mid.id;     // 기말 목표 등수
   const perfIn = mid => `<label>수행 (50점)<input class="myin" data-score="${esc(perfKey(mid))}" inputmode="decimal" placeholder="50" value="${esc(scores[perfKey(mid)]?.my || "")}"></label>`;
+  // 기말 과목 → 같은 과목 중간 (내 중간 점수 포함, 정보 적은 과목은 보기 설정 따름)
+  function midOf(fin) {
+    const midExam = PAIR[fin.exam]; if (!midExam) return null;
+    const mid = docs.find(x => x.exam === midExam && x.subject === fin.subject);
+    return mid ? viewOf({ ...mid, my: scores[mid.id]?.my || "" }) : null;
+  }
+  // 중간 → 기말 비교: 등급과 등수(상위 %, 응시 인원이 달라도 비교되게)
+  function cmpHtml(fin) {
+    const mid = midOf(fin); if (!mid || !parse(fin.my)) return "";
+    if (!parse(mid.my)) return `<p class="cmp-n">중간 점수도 넣으면 중간 → 기말 변화를 보여줘요.</p>`;
+    const gm = gradeInfo(mid), gf = gradeInfo(fin), rm = rankOf(mid), rf = rankOf(fin);
+    const side = (lab, g, r) => `<span><small>${lab}</small><b>${g ? g.n + (g.below ? "↓" : "") + "등급" : "?"}</b>${r && r.rank && !r.below ? `<small>약 ${r.rank}등 · 상위 ${Math.max(0.1, r.frac * 100) < 10 ? (r.frac * 100).toFixed(1) : Math.round(r.frac * 100)}%</small>` : ""}</span>`;
+    let delta = "";
+    if (rm && rf && !rm.below && !rf.below && rm.frac != null && rf.frac != null) {
+      // 응시 인원이 달라도 되게 상위 % 차이를 기말 인원 기준 등수로 바꿈
+      const d = Math.round((rm.frac - rf.frac) * (rf.N || rm.N || 0));
+      delta = Math.abs(d) < 2 ? `<em class="same">비슷해요</em>` : d > 0 ? `<em class="up">▲ 약 ${d}등 올랐어요</em>` : `<em class="down">▼ 약 ${-d}등 내려갔어요</em>`;
+    }
+    return `<div class="cmp">${side("중간", gm, rm)}<i aria-hidden="true">→</i>${side("기말", gf, rf)}${delta}</div>`;
+  }
   // 기말 데이터가 들어온 뒤: 기말 과목 행마다 같은 과목 중간 점수와 합쳐 학기말 예상
   function semRow(fin) {
     const midExam = PAIR[fin.exam]; if (!midExam) return "";
@@ -883,7 +934,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       }).join("");
       const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
       return `<div class="row">
-        <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
+        <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}${isNewDoc(d) ? `<em class="newb" title="지난번 방문 이후 컷이 바뀌었어요">NEW</em>` : ""}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
         <div class="acts">${d.weak ? `<button class="icon" type="button" data-est="${esc(d.id)}" aria-pressed="${!d.hiddenEst}">${d.hiddenEst ? "추정 컷 보기" : "추정 숨기기"}</button>` : ""}</div>
         ${askHtml(d)}
         ${d.weak ? `<p class="weaknote">${d.hiddenEst ? "정보가 적어서 2~4컷 추정·석차·분포는 숨겨 뒀어요. '추정 컷 보기'를 누르면 나오지만 범위가 아주 넓어요." : "정보가 적은 과목이라 추정 컷과 석차의 범위가 아주 넓어요. 참고만 하세요."}</p>` : ""}
@@ -892,6 +943,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
           <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
         ${goalHtml(d)}
         ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
+        ${cmpHtml(d)}
         ${semRow(d)}
         ${chartHtml(d)}
         ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
@@ -929,6 +981,10 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     }
     else if (t.id === "pickDone") { if (!sel) sel = []; picking = false; saveSel(); render(); }
     else if (t.id === "pickEdit") { picking = true; render(); }
+    else if (t.id === "theme") { const order = ["auto", "light", "dark"]; setTheme(order[(order.indexOf(theme) + 1) % 3]); }
+    else if (t.id === "saveImg") saveImage();
+    else if (t.id === "moveBtn") { const box = $("move"); box.hidden = !box.hidden; if (!box.hidden) { $("moveLink").value = moveLink(); $("moveLink").select(); } }
+    else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
     else if (t.dataset.semmode) { semMode = t.dataset.semmode; try { localStorage.setItem("gradecut-sem-mode", semMode); } catch {} render(); }
     else if (t.dataset.est) { const id = t.dataset.est; showEst = showEst.includes(id) ? showEst.filter(x => x !== id) : [...showEst, id]; saveEst(); render(); }
     else if (t.id === "clear") { $("clearAsk").hidden = false; }
@@ -952,6 +1008,54 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList?.contains("myin")) e.target.blur(); });
   document.addEventListener("focusout", e => { if (e.target.classList?.contains("myin")) setTimeout(render, 0); });
 
+  // 화면 테마: auto(휴대폰 설정 따라) / light / dark
+  let theme = (() => { try { const t = localStorage.getItem("gradecut-theme"); return t === "light" || t === "dark" ? t : "auto"; } catch { return "auto"; } })();
+  function setTheme(t) {
+    theme = t;
+    if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    try { if (t === "auto") localStorage.removeItem("gradecut-theme"); else localStorage.setItem("gradecut-theme", t); } catch {}
+    $("theme").textContent = "화면: " + { auto: "자동", light: "라이트", dark: "다크" }[t];
+  }
+  setTheme(theme);
+
+  // 다른 기기로 옮기기: 내 점수 전체(+선택과목)를 링크 #s=<base64 JSON>에 담음 (받는 쪽은 아래에서 처리)
+  const moveLink = () => location.origin + location.pathname + "#s=" + btoa(unescape(encodeURIComponent(JSON.stringify({ ...scores, _sel: sel || [] }))));
+
+  // 내 성적 요약을 이미지로: 캔버스에 직접 그림 (항상 밝은 배경)
+  async function saveImage() {
+    const S = lastSum; if (!S) return;
+    try { await Promise.all(["700 40px", "500 20px", "600 40px"].map(f => document.fonts.load(`${f} "IBM Plex Sans KR"`)).concat(document.fonts.load('600 40px "IBM Plex Mono"'))); } catch {}
+    const W = 1080, cols = 2, tw = 470, th = 150, gap = 20, pad = 50, top = 330;
+    const rowsN = Math.ceil(S.tiles.length / cols), H = top + rowsN * (th + gap) + 110;
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const c = cv.getContext("2d"), sans = '"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif', mono = '"IBM Plex Mono", ui-monospace, monospace';
+    const OMR = "#d43d63", INK = "#1b2230", MUTED = "#667085", RULE = "#dfe3ea", SOFT = "#fbe7ec";
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    c.fillStyle = "#f5f6f8"; c.fillRect(0, 0, W, H);
+    c.fillStyle = INK; c.font = `700 44px ${sans}`; c.fillText("등급컷", pad, 90);
+    const w1 = c.measureText("등급컷 ").width; c.fillStyle = OMR; c.fillText("아카이브", pad + w1, 90);
+    c.fillStyle = MUTED; c.font = `500 26px ${sans}`; c.fillText(`${S.exam} · 내 예상 등급`, pad, 140);
+    c.fillStyle = MUTED; c.font = `500 24px ${sans}`; c.fillText(S.label, pad, 215);
+    c.fillStyle = OMR; c.font = `600 88px ${mono}`; c.fillText(S.avg, pad, 300);
+    const aw = c.measureText(S.avg).width; c.fillStyle = MUTED; c.font = `500 26px ${sans}`; c.fillText(S.sub, pad + aw + 20, 296);
+    S.tiles.forEach((t, i) => {
+      const x = pad + (i % cols) * (tw + gap * 2), y = top + Math.floor(i / cols) * (th + gap);
+      rr(x, y, tw, th, 18); c.fillStyle = t.g === 1 ? SOFT : "#ffffff"; c.fill(); c.strokeStyle = t.g === 1 ? SOFT : RULE; c.lineWidth = 2; c.stroke();
+      c.fillStyle = t.g && t.g <= 2 ? OMR : MUTED; c.font = `600 76px ${mono}`; c.fillText(t.g ? String(t.g) + (t.u ? "?" : "") : "?", x + 30, y + 100);
+      c.fillStyle = INK; c.font = `700 30px ${sans}`; c.fillText(t.name.length > 9 ? t.name.slice(0, 9) + "…" : t.name, x + 150, y + 68);
+      c.fillStyle = MUTED; c.font = `500 26px ${mono}`; c.fillText(t.score + "점", x + 150, y + 110);
+    });
+    c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
+    c.fillText("추정 컷이 들어간 과목은 실제 컷이 나오면 바뀔 수 있어요.", pad, H - 60);
+    c.fillText(location.host + location.pathname.replace(/index\.html$/, ""), pad, H - 28);
+    const blob = await new Promise(r => cv.toBlob(r, "image/png")); if (!blob) return;
+    const file = new File([blob], "gradecut-my-grades.png", { type: "image/png" });
+    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: "내 예상 등급" }); return; } catch (e) { if (e?.name === "AbortError") return; } }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    $("status").textContent = "이미지를 저장했어요.";
+  }
+
   // 개인 점수 가져오기 링크: #s=<base64 JSON>
   if (location.hash.startsWith("#s=")) {
     try {
@@ -959,6 +1063,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       if (Array.isArray(data._sel)) { sel = data._sel; saveSel(); delete data._sel; }
       scores = { ...loadLocal(), ...data };
       saveLocal();
+      setTimeout(() => { $("status").textContent = "링크로 받은 점수를 불러왔어요."; }, 0);
       history.replaceState(null, "", location.pathname);
     } catch { scores = loadLocal(); }
   } else scores = loadLocal();
@@ -987,6 +1092,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const when = fmt(j.updated);
     $("asof").textContent = when ? `${when} 기준 등급컷` : "등급컷 기준 시각 미정";
     $("updated").textContent = when ? `마지막 업데이트 ${when} (한국 시간)` : "";
+    try { localStorage.setItem(VKEY, j.updated || new Date().toISOString()); } catch {}
     render();
   }).catch(() => {
     $("examTitle").textContent = "등급컷을 불러오지 못했어요";
