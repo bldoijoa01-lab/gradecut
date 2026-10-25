@@ -81,6 +81,19 @@ h1 span{color:var(--omr)}
 .cell b.unsure{color:var(--muted);font-weight:500}
 .cell b.unsure::after{content:"?";font-size:.75em;margin-left:1px;color:var(--omr)}
 .cell b.none{color:var(--rule)}
+.gprob{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;background:var(--omr-soft)}
+.gp-big{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
+.gp-big b{font-family:var(--mono);font-size:2.4rem;line-height:1;font-weight:600;color:var(--omr);font-variant-numeric:tabular-nums}
+.gp-big span{font-size:.9rem;font-weight:700}
+.gprob .sp-bar{background:color-mix(in srgb,var(--omr) 10%,var(--surface))}
+.gprob.sure .gp-big b{font-family:var(--sans);font-size:1.8rem}
+.gp-why{margin:0;font-size:.76rem;color:var(--muted)}
+.cell b.rng{font-size:.92rem;color:var(--ink);text-decoration:underline dotted var(--omr);text-underline-offset:3px;white-space:nowrap}
+.cell small.mid{font-size:.6rem;color:var(--muted);white-space:nowrap}
+.strip .band{position:absolute;top:4px;height:14px;background:color-mix(in srgb,var(--omr) 24%,transparent);border-radius:3px;min-width:2px}
+.strip .band span{position:absolute;top:-1px;left:3px;font-size:.62rem;color:var(--omr);font-family:var(--mono)}
+.plot .cb{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--omr) 14%,transparent);pointer-events:none;min-width:2px}
+.plot .cb span{position:absolute;top:-14px;left:2px;font:600 .6rem var(--mono);color:var(--omr)}
 .cell.me{background:var(--omr-soft);border-color:transparent}
 .cell.me b{color:var(--me)}
 .rkwrap{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;margin-top:3px}
@@ -174,13 +187,15 @@ h1 span{color:var(--omr)}
 .sp-big span{font-size:.84rem;font-weight:700}
 .sp-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--rule)}
 .sp-bar i{display:block;height:100%}
-.sp-bar .g1{background:var(--omr)}
-.sp-bar .g2{background:var(--omr);opacity:.5}
-.sp-bar .g3{background:var(--muted)}
-.sp-bar .g4{background:var(--muted);opacity:.55}
-.sp-bar .g5{background:var(--muted);opacity:.3}
-.sp-leg{margin:0;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.76rem;font-variant-numeric:tabular-nums}
-.sp-leg .g1,.sp-leg .g2{color:var(--omr);font-weight:700}
+/* 등급별 색 (막대·범례 같이): 1 진분홍 · 2 연분홍 · 3 노랑 · 4 하늘 · 5 회색 */
+:root{--g1:#d43d63;--g2:#ef8fa8;--g3:#e8a93a;--g4:#7f9fd0;--g5:#aab2bf}
+.sp-bar .g1{background:var(--g1)}.sp-bar .g2{background:var(--g2)}.sp-bar .g3{background:var(--g3)}.sp-bar .g4{background:var(--g4)}.sp-bar .g5{background:var(--g5)}
+.sp-bar i+i{box-shadow:inset 2px 0 0 var(--surface)}
+.sp-leg{margin:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.76rem;font-variant-numeric:tabular-nums}
+.sp-leg span{display:inline-flex;align-items:center;gap:5px}
+.sp-leg span::before{content:"";width:9px;height:9px;border-radius:2px;background:var(--gc)}
+.sp-leg .g1{--gc:var(--g1)}.sp-leg .g2{--gc:var(--g2)}.sp-leg .g3{--gc:var(--g3)}.sp-leg .g4{--gc:var(--g4)}.sp-leg .g5{--gc:var(--g5)}
+.sp-leg .top{font-weight:700}
 .semrange{width:100%;accent-color:var(--omr);margin:4px 0 0}
 .semrange.rank{direction:rtl}
 .seg{display:inline-flex;align-self:flex-start;border:1px solid var(--omr);border-radius:999px;overflow:hidden}
@@ -684,16 +699,32 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           : r ? r[0] === r[2] ? ` · ${b.lo}점 이상 ${r[1]}명` : ` · ${b.lo}점 이상은 ${r[0]}~${r[2]}명 (90% 범위)` : "");
       return `<div class="b${g ? " g" + g : ""}${b.k ? " k" : ""}${mine ? " me" : ""}" data-info="${esc(info)}"><i style="height:${hOf(b) / max * 100}%"></i></div>`;
     }).join("");
-    const lines = cuts.map((c, i) => c ? `<div class="cl${c.unsure ? " u" : ""}" style="left:${Math.max(0, Math.min(100, c.n))}%"><span>${i + 1}</span></div>` : "").join("");
+    const lines = cuts.map((c, i) => { if (!c) return ""; const r = c.unsure && d.cut_ranges && d.cut_ranges[i + 1], cl = x => Math.max(0, Math.min(100, x));
+      return r ? `<div class="cb" style="left:${cl(r[0])}%;width:${cl(r[2]) - cl(r[0])}%"><span>${i + 1}</span></div>`
+        : `<div class="cl${c.unsure ? " u" : ""}" style="left:${cl(c.n)}%"><span>${i + 1}</span></div>`; }).join("");
     const me = m ? `<div class="ml" style="left:${Math.max(0, Math.min(100, m.n))}%"><span>나</span></div>` : "";
     const hasKnown = bins.some(b => b.k);
     const label = `${d.subject} 점수 분포 추정: ` + bins.filter(b => b.n).map(b => `${b.lo}점대 ${b.n}명`).join(", ");
-    return `<div class="chart"><div class="chart-h"><span>점수 분포 · 5점 구간 인원</span><span>세로선 = 등급컷${cuts.some(c => c?.unsure) ? " (점선은 추정)" : ""}</span></div>
+    return `<div class="chart"><div class="chart-h"><span>점수 분포 · 5점 구간 인원</span><span>세로선 = 등급컷${cuts.some(c => c?.unsure) ? " · 띠 = 추정 범위" : ""}</span></div>
       <div class="plot" role="img" aria-label="${esc(label)}">${bars}${lines}${me}</div>
       <div class="axis" aria-hidden="true"><span style="left:0">0</span><span style="left:25%">25</span><span style="left:50%">50</span><span style="left:75%">75</span><span style="left:100%">100</span></div>
       <p class="readout idle" aria-live="polite">막대를 누르면 그 구간 인원이 나와요.</p>
       <p class="chart-f">${hasKnown ? "진한 막대는 실제로 확인된 인원이에요. 연한 막대는 " : "막대는 "}알려진 사실과 맞는 분포 수백 개를 계산한 가운데 값이라, 실제 인원과 몇 명씩 다를 수 있어요(알려진 정보가 적은 구간일수록 더). 막대를 누르면 나오는 90% 범위로 얼마나 달라질 수 있는지 볼 수 있어요.</p>
       ${d.dist?.length ? `<details><summary>알려진 점수대 인원 보기</summary>${distHtml(d)}</details>` : ""}</div>`;
+  }
+
+  // 등급 확률을 크게: 가장 유력한 등급의 확률 + 1~5등급 막대 (확정이면 '확정')
+  function gradeProbHtml(d) {
+    const m = parse(d.my); if (!m) return "";
+    const g = gradeInfo(d); if (!g) return "";
+    if (g.below) return `<div class="gprob sure"><div class="gp-big"><b>${g.n}등급</b><span>이하</span></div><p class="gp-why">${d.hiddenEst ? "정보가 적어서 몇 등급인지까지는 몰라요. 위의 '추정 컷 보기'를 누르면 등급별 확률이 나와요." : esc(g.tip || "")}</p></div>`;
+    if (!g.u && !g.prob) return `<div class="gprob sure"><div class="gp-big"><b>${g.n}등급</b><span>${g.below ? "이하" : "확정"}</span></div><p class="gp-why">${esc(g.tip || "확정 컷 기준이라 바뀌지 않아요.")}</p></div>`;
+    const s = parseFloat(d.n) ? simAt(d, m.n) : null;
+    if (!s || !s.gp) return "";
+    const gp = s.gp.map(v => v / 100), top = topGrade(gp);
+    return `<div class="gprob"><div class="gp-big"><b>${pctTxt(gp[top])}</b><span>${top + 1}등급일 확률</span></div>
+      <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
+      <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}${k === top ? " top" : ""}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p></div>`;
   }
 
   // 다음 등급까지 몇 점 더 필요한지, 지금 등급 컷보다 몇 점 위인지
@@ -707,12 +738,16 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const out = [];
     const rankTxt = x => { const s = parseFloat(d.n) ? simAt(d, x) : null; return s ? ` <small>· 그 점수면 약 ${Math.max(1, s.mid)}등</small>` : ""; };
     if (cg > 1) {
-      const t = cuts[cg - 2];
-      out.push(`<span>${cg - 1}등급까지 <b>+${num(t.n - m.n)}</b>점${t.unsure ? " <small>(추정 컷 기준)</small>" : ""}${rankTxt(t.n)}</span>`);
+      const t = cuts[cg - 2], r = t.unsure && d.cut_ranges && d.cut_ranges[cg - 1];
+      if (!r) out.push(`<span>${cg - 1}등급까지 <b>+${num(t.n - m.n)}</b>점${t.unsure ? " <small>(추정 컷 기준)</small>" : ""}${rankTxt(t.n)}</span>`);
+      else if (m.n < r[0]) out.push(`<span>${cg - 1}등급까지 <b>+${num(r[0] - m.n)}~${num(r[2] - m.n)}</b>점 <small>(추정 범위)</small></span>`);
+      else out.push(`<span>${cg - 1}등급 추정 범위(${Math.round(r[0])}~${Math.round(r[2])}) 안이에요 <small>· 확실하려면 +${num(r[2] - m.n)}점</small></span>`);
     }
     if (cg <= 4) {
-      const c = cuts[cg - 1];
-      out.push(`<span class="keep">${cg}등급 컷${c.unsure ? "(추정)" : ""}보다 <b>${num(m.n - c.n)}</b>점 위</span>`);
+      const c = cuts[cg - 1], r = c.unsure && d.cut_ranges && d.cut_ranges[cg];
+      if (!r) out.push(`<span class="keep">${cg}등급 컷${c.unsure ? "(추정)" : ""}보다 <b>${num(m.n - c.n)}</b>점 위</span>`);
+      else if (m.n >= r[2]) out.push(`<span class="keep">${cg}등급 추정 범위(${Math.round(r[0])}~${Math.round(r[2])})보다도 <b>${num(m.n - r[2])}</b>점 위</span>`);
+      else out.push(`<span class="keep">${cg}등급 추정 범위(${Math.round(r[0])}~${Math.round(r[2])}) 안이라 등급이 바뀔 수 있어요</span>`);
     }
     return out.length ? `<div class="goal">${out.join("")}</div>` : "";
   }
@@ -1016,16 +1051,20 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       const cells = noCut ? `<div class="nocut">아직 등급컷이 없어요</div>` : [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]);
         return `<div class="cell"><i>${i + 1}컷</i>${p ? (p.unsure
-          ? `<b class="unsure${i >= 2 ? " tr" : ""}" tabindex="0" data-tip="${esc(d.cut_ranges && d.cut_ranges[i + 1]
-              ? `추정 컷 · 아직 확정 아님\n90% 범위: ${d.cut_ranges[i + 1][0]}~${d.cut_ranges[i + 1][2]}점\n(10번 중 9번은 이 안)` + (d.rk_why ? "\n근거: " + d.rk_why : "")
-              : "추정 컷 · 아직 확정 아님" + (d.note ? "\n" + d.note.replace(/ · /g, "\n").replace(/요\. /g, "요.\n").replace(/ \(([^)]*?)\s*범위\)/, "\n범위: $1") : ""))}">${esc(p.raw)}</b>`
+          ? (() => { const r = d.cut_ranges && d.cut_ranges[i + 1];
+              const tip = r ? `추정 컷 · 아직 확정 아님\n90% 범위: ${r[0]}~${r[2]}점 (10번 중 9번은 이 안)\n가운데 값: ${r[1]}점\n내 등급은 이 범위 전체를 고려한 확률로 보여줘요.` + (d.rk_why ? "\n근거: " + d.rk_why : "")
+                : "추정 컷 · 아직 확정 아님" + (d.note ? "\n" + d.note.replace(/ · /g, "\n").replace(/요\. /g, "요.\n").replace(/ \(([^)]*?)\s*범위\)/, "\n범위: $1") : "");
+              return r ? `<b class="rng" tabindex="0" data-tip="${esc(tip)}">${Math.round(r[0])}~${Math.round(r[2])}</b><small class="mid">가운데 ${esc(p.raw)}</small>`
+                : `<b class="unsure" tabindex="0" data-tip="${esc(tip)}">${esc(p.raw)}</b>`; })()
           : `<b>${esc(p.raw)}</b>`) : `<b class="none">—</b>`}</div>`;
       }).join("");
       const myP = parse(d.my);
       const me = `<div class="cell me"><i>내 점수</i>${numIn(`id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수"`, rawOf(d.id), 0, 100, "점")}${rankHtml(d)}</div>`;
       const ticks = [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]); if (!p) return "";
-        return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${Math.max(0, Math.min(100, p.n))}%"><span>${i + 1}</span></div>`;
+        const r = p.unsure && d.cut_ranges && d.cut_ranges[i + 1], cl = x => Math.max(0, Math.min(100, x));
+        if (r) return `<div class="band" style="left:${cl(r[0])}%;width:${cl(r[2]) - cl(r[0])}%"><span>${i + 1}</span></div>`;
+        return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${cl(p.n)}%"><span>${i + 1}</span></div>`;
       }).join("");
       const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
       return `<div class="row">
@@ -1036,6 +1075,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         <div class="cuts">${cells}${me}</div>
         <div class="strip" aria-hidden="true"><div class="base"></div>
           <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
+        ${gradeProbHtml(d)}
         ${goalHtml(d)}
         ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
         ${cmpHtml(d)}
