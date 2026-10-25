@@ -201,6 +201,20 @@ h1 span{color:var(--omr)}
 .soonhead b{font-family:var(--mono);font-size:.95rem;letter-spacing:.12em;color:var(--omr)}
 .soonhead p{margin:0;color:var(--muted);font-size:.84rem;word-break:keep-all}
 .weaknote{grid-column:1/-1;margin:0;font-size:.76rem;color:#c27a0b}
+.news{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.news-h{display:flex;align-items:center;gap:8px;font-size:.88rem}
+.news-h .new{font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--omr);color:#fff}
+.news ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.news li{display:grid;grid-template-columns:auto auto 1fr;align-items:baseline;gap:8px;font-size:.84rem;min-width:0}
+.news time{font:500 .72rem var(--mono);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.news .t{min-width:0;overflow-wrap:anywhere}
+.news .t em{font-style:normal;font-size:.62rem;font-weight:700;color:var(--omr);margin-left:6px;vertical-align:1px}
+.tag{font-size:.66rem;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap}
+.tag.d{background:var(--omr-soft);color:var(--omr)}
+.tag.f{background:rgba(47,111,214,.12);color:var(--me)}
+.news-f{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:.8rem}
+.news-f a{color:var(--me);text-decoration:none;font-weight:600}
+.news-f a.report{color:#fff;background:var(--omr);padding:4px 12px;border-radius:999px}
 .note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
 .empty{padding:28px 16px;color:var(--muted);text-align:center;font-size:.9rem}
 form{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -261,6 +275,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     <p class="asof" id="asof">등급컷 불러오는 중</p>
     <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
   </header>
+
+  <section class="news" id="news" aria-label="최근 업데이트" hidden></section>
 
   <div class="chips" id="chips" role="group" aria-label="시험 선택"></div>
 
@@ -925,6 +941,21 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     } catch { scores = loadLocal(); }
   } else scores = loadLocal();
   if (!sel) sel = loadSel();
+
+  // 최근 업데이트: updates.json의 최신 3개. 지난번 방문 이후 새로 생긴 건 NEW (처음 방문이면 표시 안 함)
+  const LSEEN = "gradecut-last-seen";
+  fetch("updates.json", { cache: "no-store" }).then(r => r.json()).then(u => {
+    const items = (u.items || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    if (!items.length) return;
+    let seen = null; try { seen = localStorage.getItem(LSEEN); } catch {}
+    const isNew = it => seen && new Date(it.at) > new Date(seen);
+    const fresh = items.filter(isNew).length;
+    $("news").innerHTML = `<div class="news-h"><b>최근 업데이트</b>${fresh ? `<span class="new">새 소식 ${fresh}개</span>` : ""}</div>
+      <ul>${items.slice(0, 3).map(it => `<li><time>${esc(fmt(it.at, true))}</time><span class="tag ${it.kind === "data" ? "d" : "f"}">${it.kind === "data" ? "등급컷" : "기능"}</span><span class="t">${esc(it.title)}${isNew(it) ? `<em>NEW</em>` : ""}</span></li>`).join("")}</ul>
+      <div class="news-f"><a href="updates.html">업데이트 내역 전체 보기 →</a>${u.report_url ? `<a class="report" href="${esc(u.report_url)}" target="_blank" rel="noopener">정보 제보하기</a>` : ""}</div>`;
+    $("news").hidden = false;
+    try { localStorage.setItem(LSEEN, items[0].at); } catch {}
+  }).catch(() => {});
 
   fetch("cuts.json", { cache: "no-store" }).then(r => r.json()).then(j => {
     docs = j.subjects || [];
