@@ -31,10 +31,13 @@ a{color:var(--me)}
 .back{font-size:.84rem;font-weight:600;text-decoration:none}
 .toprow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
 .toprow h1{white-space:nowrap}
-.themes{display:inline-flex;flex:none;padding:3px;gap:2px;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
+.themes{position:relative;display:inline-grid;grid-template-columns:repeat(3,1fr);flex:none;padding:3px;gap:0;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
 .themes button{font:inherit;font-size:.76rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border:0;border-radius:999px;background:none;color:var(--omr);cursor:pointer;white-space:nowrap}
 .themes button svg{width:14px;height:14px}
-.themes button[aria-pressed="true"]{background:var(--omr);color:#fff}
+.themes button{position:relative;z-index:1;justify-content:center}
+.themes button[aria-pressed="true"]{background:none;color:#fff}
+.themes .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / 3);border-radius:999px;background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)));box-shadow:0 3px 10px color-mix(in srgb,var(--omr) 35%,transparent)}
+@media (prefers-reduced-motion:no-preference){.themes .thumb.ready{transition:transform .45s cubic-bezier(.3,1.25,.5,1)}.themes button{transition:color .3s ease}}
 .themes button:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 @media (max-width:400px){.themes button{padding:5px 7px;font-size:.72rem}}
 /* 테마 바꿀 때 부드럽게 (눈부심 줄이기) */
@@ -87,7 +90,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 </head>
 <body>
 <div class="wrap">
-  <div class="toprow"><a class="back" href="./">← 오송고 등급컷 아카이브로</a><div class="themes" id="theme" role="group" aria-label="화면 테마"><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
+  <div class="toprow"><a class="back" href="./">← 오송고 등급컷 아카이브로</a><div class="themes" id="theme" role="group" aria-label="화면 테마"><span class="thumb" aria-hidden="true"></span><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
   <header>
     <h1>업데이트 <span>내역</span></h1>
     <p class="sub">등급컷이 새로 들어오거나 기능이 바뀔 때마다 여기에 기록해요. 시각은 한국 시간이에요.</p>
@@ -134,6 +137,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else { const h = document.documentElement; h.classList.add("theme-fade"); apply(); setTimeout(() => h.classList.remove("theme-fade"), 500); }
     try { if (t === "auto") localStorage.removeItem("gradecut-theme"); else localStorage.setItem("gradecut-theme", t); } catch {}
     document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
+    const th = document.querySelector("#theme .thumb"); if (th) { th.style.transform = `translateX(${["auto", "light", "dark"].indexOf(t) * 100}%)`; requestAnimationFrame(() => th.classList.add("ready")); }
   };
   setTheme(theme);
   $("theme").addEventListener("click", e => { const b = e.target.closest("[data-theme-set]"); if (b) setTheme(b.dataset.themeSet, true); });

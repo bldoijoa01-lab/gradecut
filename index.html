@@ -184,13 +184,18 @@ h1 span{color:var(--omr)}
 .sem{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:10px}
 .sem-h{font-size:.8rem;font-weight:700}
 .sem-h small{font-weight:400;color:var(--muted);margin-left:6px}
-.need{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
-.need span{display:block;font-size:.78rem;padding:6px 10px;border-radius:8px;border:1px solid var(--rule);font-variant-numeric:tabular-nums}
-.need span em{display:block;font-style:normal;font-size:.68rem;font-weight:700;color:var(--muted)}
-.need span.g1 em,.need span.g2 em{color:var(--omr)}
-.need span b{font-family:var(--mono);font-weight:600}
-.need span small{color:var(--muted)}
-.need span small.sc{display:block;font-size:.7rem}
+.need{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:6px}
+.need .nb{display:block;font:inherit;font-size:.8rem;text-align:left;color:var(--ink);padding:8px 10px;border-radius:10px;border:1px solid var(--rule);background:var(--surface);font-variant-numeric:tabular-nums}
+.need .nb em{display:block;font-style:normal;font-size:.7rem;font-weight:700;color:var(--muted)}
+.need .nb.g1{background:color-mix(in srgb,var(--g1) 10%,var(--surface));border-color:color-mix(in srgb,var(--g1) 35%,var(--rule))}
+.need .nb.g2{background:color-mix(in srgb,var(--g2) 12%,var(--surface));border-color:color-mix(in srgb,var(--g2) 40%,var(--rule))}
+.need .nb.g1 em,.need .nb.g2 em{color:var(--omr)}
+.need .nb b{font-family:var(--mono);font-weight:600}
+.need .nb small{color:var(--muted)}
+.need .nb small.sc{display:block;font-size:.7rem}
+.need button.nb{cursor:pointer}
+.need button.nb i{display:block;font-style:normal;font-size:.68rem;font-weight:700;color:var(--omr);margin-top:4px}
+@media (hover:hover){.need button.nb:hover{border-color:var(--omr)}}
 .hero{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:14px;border-radius:10px;background:var(--omr-soft)}
 .hero h3{margin:0;font-size:1.05rem;color:var(--omr)}
 .hero p{margin:0;font-size:.86rem;color:var(--ink);word-break:keep-all}
@@ -214,13 +219,16 @@ h1 span{color:var(--omr)}
 .sp-leg .top{font-weight:700}
 .semrange{width:100%;accent-color:var(--omr);margin:4px 0 0}
 .semrange.rank{direction:rtl}
-.seg{display:inline-flex;align-self:flex-start;border:1px solid var(--omr);border-radius:999px;overflow:hidden}
-.seg button{font:inherit;font-size:.82rem;padding:6px 14px;border:0;background:var(--surface);color:var(--omr);cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--omr);color:#fff;font-weight:700}
+.seg{position:relative;display:inline-grid;grid-template-columns:1fr 1fr;align-self:flex-start;border:1px solid var(--omr);border-radius:999px;overflow:hidden;background:var(--surface)}
+.seg .thumb{position:absolute;top:0;bottom:0;left:0;width:50%;border-radius:999px;background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)))}
+.seg button{position:relative;z-index:1}
+.seg button{font:inherit;font-size:.82rem;padding:6px 14px;border:0;background:none;color:var(--omr);cursor:pointer}
+.seg button[aria-pressed="true"]{background:none;color:#fff;font-weight:700}
 .rr{display:flex;justify-content:space-between;font:500 .64rem var(--mono);color:var(--muted);margin-top:-2px}
 .sp-h small{font-size:.92em}
-.needs summary{cursor:pointer;font-size:.78rem;color:var(--muted)}
-.needs .need{margin-top:8px}
+.needs{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px dashed var(--rule)}
+.needs-h{font-size:.88rem;font-weight:700}
+.needs-h small{display:block;font-weight:500;font-size:.72rem;color:var(--muted)}
 .rawme{margin:0;font-size:.84rem}
 .rawme b{font-family:var(--mono);font-weight:600;color:var(--me)}
 .rawme small{display:block;color:var(--muted);font-size:.72rem}
@@ -276,10 +284,12 @@ h1 span{color:var(--omr)}
 .legend .acc{cursor:default}
 .toprow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
 .toprow h1{white-space:nowrap}
-.themes{display:inline-flex;flex:none;padding:3px;gap:2px;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
+.themes{position:relative;display:inline-grid;grid-template-columns:repeat(3,1fr);flex:none;padding:3px;gap:0;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
 .themes button{font:inherit;font-size:.76rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border:0;border-radius:999px;background:none;color:var(--omr);cursor:pointer;white-space:nowrap}
 .themes button svg{width:14px;height:14px}
-.themes button[aria-pressed="true"]{background:var(--omr);color:#fff}
+.themes button{position:relative;z-index:1;justify-content:center}
+.themes button[aria-pressed="true"]{background:none;color:#fff}
+.themes .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / 3);border-radius:999px;background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)));box-shadow:0 3px 10px color-mix(in srgb,var(--omr) 35%,transparent)}
 .themes button:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 @media (max-width:400px){.themes button{padding:5px 7px;font-size:.72rem}}
 /* 테마 바꿀 때 부드럽게 (눈부심 줄이기) */
@@ -384,8 +394,11 @@ h1 span{background:linear-gradient(90deg,var(--omr),var(--violet));-webkit-backg
   body.intro .wrap>:nth-child(2){animation-delay:.06s}body.intro .wrap>:nth-child(3){animation-delay:.12s}body.intro .wrap>:nth-child(4){animation-delay:.18s}
   body.intro .wrap>:nth-child(5){animation-delay:.24s}body.intro .wrap>:nth-child(6){animation-delay:.3s}body.intro .wrap>:nth-child(n+7){animation-delay:.36s}
   body.intro .row{animation:rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(.35s + var(--i,0) * 70ms)}
-  body.intro .plot .b i,.row.fresh .plot .b i{animation:grow-y .8s cubic-bezier(.2,.7,.2,1) both;transform-origin:bottom}
-  body.intro .sp-bar i,.row.fresh .sp-bar i{animation:grow-x .7s cubic-bezier(.2,.7,.2,1) both;transform-origin:left}
+  body.intro .plot .b i{animation:grow-y .8s cubic-bezier(.2,.7,.2,1) both;transform-origin:bottom}
+  body.intro .sp-bar i{animation:grow-x .7s cubic-bezier(.2,.7,.2,1) both;transform-origin:left}
+  .mv{transition:left .55s cubic-bezier(.2,.7,.2,1),width .55s cubic-bezier(.2,.7,.2,1),transform .45s cubic-bezier(.3,1.25,.5,1)!important}
+  .themes .thumb.ready{transition:transform .45s cubic-bezier(.3,1.25,.5,1)}
+  .themes button,.seg button{transition:color .3s ease}
   .row.fresh .gb{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
   .row.fresh .gprob,.row.fresh .goal{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
   .row,.summary,.picker,.mytools,.news,.tile,.tbtn,.chip,.pchip,.btn,.cell{transition:transform .18s ease,box-shadow .18s ease,background-color .2s,border-color .2s}
@@ -412,7 +425,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 <div class="wrap">
   <header>
     <p class="school">오송고 2학년을 위한</p>
-    <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><div class="themes" id="theme" role="group" aria-label="화면 테마"><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
+    <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><div class="themes" id="theme" role="group" aria-label="화면 테마"><span class="thumb" aria-hidden="true"></span><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
   <section class="promo" id="promo" aria-label="기말 목표 계산기" hidden>
       <div class="promo-t"><span class="promo-tag">NEW</span><b>기말 목표 계산기 오픈!</b><p>중간 점수만 넣으면, 학기말 1등급 받으려면 기말에서 몇 등 안에 들어야 하는지 알려드려요.</p></div>
       <div class="promo-b"><button class="btn" type="button" data-goexam="soon">계산해 보기 →</button><button class="icon" type="button" id="promoClose" aria-label="배너 닫기">닫기</button></div>
@@ -749,7 +762,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         `계산: 사실과 맞는 분포 ${d.rk_models || "여러"}개 × 가상의 반 ${d.rk_sims || 40}개`,
         d.rk_why ? "근거: " + d.rk_why : ""
       ].filter(Boolean).join("\n");
-      return `<span class="rkwrap" tabindex="0" data-tip="${esc(tip)}"><span class="rk">${r.lo === r.hi ? "" : "약 "}${r.rank}등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span></span>`;
+      return `<span class="rkwrap" tabindex="0" data-tip="${esc(tip)}"><span class="rk">${r.lo === r.hi ? "" : "약 "}<i class="cnt0" data-count="${r.rank}" data-key="rk-${esc(d.id)}">${r.rank}</i>등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span></span>`;
     }
     const tip = ["예상 석차 · 대략", r.model ? "방법: 평균·컷·점수대 인원에 맞춘 분포 모델" : "방법: 컷 사이를 직선으로 이음 (정보가 적어 오차가 커요)", d.rk_why ? "근거: " + d.rk_why : ""].filter(Boolean).join("\n");
     const txt = r.below ? `상위 ${Math.round(r.frac * 100)}% 밖`
@@ -806,7 +819,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const lines = cuts.map((c, i) => { if (!c) return ""; const r = c.unsure && d.cut_ranges && d.cut_ranges[i + 1], cl = x => Math.max(0, Math.min(100, x));
       return r ? `<div class="cb" style="left:${cl(r[0])}%;width:${cl(r[2]) - cl(r[0])}%"><span>${i + 1}</span></div>`
         : `<div class="cl${c.unsure ? " u" : ""}" style="left:${cl(c.n)}%"><span>${i + 1}</span></div>`; }).join("");
-    const me = m ? `<div class="ml" style="left:${Math.max(0, Math.min(100, m.n))}%"><span>나</span></div>` : "";
+    const me = m ? `<div class="ml" data-mv="ml-${esc(d.id)}" style="left:${Math.max(0, Math.min(100, m.n))}%"><span>나</span></div>` : "";
     const hasKnown = bins.some(b => b.k);
     const label = `${d.subject} 점수 분포 추정: ` + bins.filter(b => b.n).map(b => `${b.lo}점대 ${b.n}명`).join(", ");
     return `<div class="chart"><div class="chart-h"><span>점수 분포 · 5점 구간 인원</span><span>세로선 = 등급컷${cuts.some(c => c?.unsure) ? " · 띠 = 추정 범위" : ""}</span></div>
@@ -827,7 +840,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     if (!s || !s.gp) return "";
     const gp = s.gp.map(v => v / 100), top = topGrade(gp);
     return `<div class="gprob"><div class="gp-big"><b${cntAttr(gp[top], "gp-" + d.id)}>${pctTxt(gp[top])}</b><span>${top + 1}등급일 확률</span></div>
-      <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
+      <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => `<i class="g${k + 1}" data-mv="gpb-${esc(d.id)}-${k}" style="width:${p >= 0.005 ? p * 100 : 0}%"></i>`).join("")}</div>
       <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}${k === top ? " top" : ""}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p></div>`;
   }
 
@@ -1013,7 +1026,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const gpBlock = (gp, key) => {
     const top = topGrade(gp);
     return `<div class="sp-big"><b${cntAttr(gp[0], "semp-" + (key || ""))}>${pctTxt(gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(gp[top])})` : ""}</span></div>
-      <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
+      <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => `<i class="g${k + 1}" data-mv="semb-${esc(key || "")}-${k}" style="width:${p >= 0.005 ? p * 100 : 0}%"></i>`).join("")}</div>
       <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p>`;
   };
   function probRankHtml(mid, fin, rr, guessed, pstr) {
@@ -1049,12 +1062,18 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     } else center = s.f ? probHtml(mid, fin, Math.max(0, Math.min(100, s.f.n)), false, pstr) : `<p class="sem-f">기말 점수를 넣으면 학기말 등급 확률이 나와요.</p>`;
     const scoreTxt = x => !x.sr ? `점수로는 ${x.from}점 이상`
       : `점수로는 ${x.from}점 이상 · 기말 난이도·퍼짐 따라 ${x.sr[0] ?? 0}~${x.sr[1] ?? 100}${x.sr[1] === null ? "점↑" : "점"}`;
-    const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 등이든 유력"
-      : x.from === null ? `기말 만점이어도 어려움 <small>(${x.best}%)</small>`
-      : `기말 <b>약 ${x.rank}등</b> 안${x.rlo !== x.rhi ? ` <small>(${x.rlo}~${x.rhi}등)</small>` : ""}<small class="sc">${scoreTxt(x)}</small>`}</span>`).join("");
+    // 기말 전에는 칸을 누르면 그 등수(점수 모드면 점수)가 내 기말 목표로 들어감
+    const need = s.need.map(x => {
+      const body = `<em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 등이든 유력"
+        : x.from === null ? `기말 만점이어도 어려움 <small>(${x.best}%)</small>`
+        : `기말 <b>약 ${x.rank}등</b> 안${x.rlo !== x.rhi ? ` <small>(${x.rlo}~${x.rhi}등)</small>` : ""}<small class="sc">${scoreTxt(x)}</small>`}`;
+      return slider && x.from
+        ? `<button type="button" class="nb g${x.g + 1}" data-goalmid="${esc(mid.id)}" data-grank="${x.rank}" data-gscore="${x.from}" aria-label="${x.g + 1}등급 목표로 설정">${body}<i>목표로 설정 →</i></button>`
+        : `<span class="nb g${x.g + 1}">${body}</span>`;
+    }).join("");
     return `<div class="sem"><div class="sem-h">학기말 등급 확률 <small>중간 ${esc(s.m.raw)}점 · ${s.p ? `수행 ${esc(s.p.raw)}점 기준` : "수행 만점으로 계산"}</small></div>
       ${s.pBad ? `<p class="sem-f warn">수행 점수는 50점 만점 기준으로 넣어 주세요. 지금은 만점으로 계산했어요.</p>` : ""}${range}${center}
-      <details class="needs"><summary>등급별로 기말 몇 등·몇 점이 필요한지 보기</summary><div class="need">${need}</div></details>
+      <div class="needs"><div class="needs-h">🎯 학기말 등급별 기말 목표${slider ? "<small>누르면 내 목표로 들어가요</small>" : ""}</div><div class="need">${need}</div></div>
       ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
   }
   const semKey = mid => "sem-" + mid.id;
@@ -1094,7 +1113,19 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 
   // 그린 뒤: 숫자 카운트, 방금 고친 과목(.fresh) 표시 해제
   let freshId = null;
-  function render() { renderCore(); animateNumbers(); freshId = null; }
+  function render() { renderCore(); animateNumbers(); moveAnim(); freshId = null; }
+  // 위치·너비가 바뀐 요소(data-mv): 이전 자리에서 새 자리로 부드럽게 (다시 그려도 이어지게 이전 style을 기억)
+  const prevMv = {};
+  function moveAnim(root = document) {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    root.querySelectorAll("[data-mv]").forEach(el => {
+      const k = el.dataset.mv, now = el.getAttribute("style") || "", before = prevMv[k];
+      prevMv[k] = now;
+      if (reduce || before == null || before === now) return;
+      el.setAttribute("style", before); void el.offsetWidth;
+      el.classList.add("mv"); el.setAttribute("style", now);
+    });
+  }
   const prevNums = {}, runningNums = {};
   const cntAttr = (p, key) => { const t = pctTxt(p); return /^\d+%$/.test(t) ? ` data-count="${parseInt(t)}" data-suf="%" data-key="${esc(key)}"` : ""; };
   function animateNumbers(root = document) {
@@ -1156,7 +1187,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       $("count").textContent = "기말 컷 준비 중";
       $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요.</p>
           <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수를 넣고 기말 목표를 정하면, 학기말 1등급 확률을 바로 알려드려요. 막대를 움직이면서 기말에서 얼마나 해야 하는지 감을 잡아 보세요.</p>
-          <div class="seg" role="group" aria-label="기말 목표 정하는 방법"><button type="button" data-semmode="rank" aria-pressed="${semMode === "rank"}">목표 등수로</button><button type="button" data-semmode="score" aria-pressed="${semMode === "score"}">목표 점수로</button></div>
+          <div class="seg" role="group" aria-label="기말 목표 정하는 방법"><span class="thumb" aria-hidden="true" data-mv="segthumb" style="transform:translateX(${semMode === "score" ? 100 : 0}%)"></span><button type="button" data-semmode="rank" aria-pressed="${semMode === "rank"}">목표 등수로</button><button type="button" data-semmode="score" aria-pressed="${semMode === "score"}">목표 점수로</button></div>
           <p class="sem-f">${semMode === "rank" ? "등수로 정하면 기말이 쉽든 어렵든 같은 자리라서 확률이 더 정확해요." : "점수로 정하면 기말이 쉬운지 어려운지에 따라 같은 점수도 자리가 달라져서, 그만큼 확률이 덜 확실해요."}</p>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map((d, ri) => {
@@ -1196,7 +1227,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         if (r) return `<div class="band" style="left:${cl(r[0])}%;width:${cl(r[2]) - cl(r[0])}%"><span>${i + 1}</span></div>`;
         return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${cl(p.n)}%"><span>${i + 1}</span></div>`;
       }).join("");
-      const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
+      const dot = myP ? `<div class="dot" data-mv="dot-${esc(d.id)}" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
       return `<div class="row${d.id === freshId ? " fresh" : ""}" style="--i:${ri}">
         <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}${isNewDoc(d) ? `<em class="newb" title="지난번 방문 이후 컷이 바뀌었어요">NEW</em>` : ""}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""} ${accHtml(d)}</small></div></div>
         <div class="acts">${d.weak ? `<button class="icon" type="button" data-est="${esc(d.id)}" aria-pressed="${!d.hiddenEst}">${d.hiddenEst ? "추정 컷 보기" : "추정 숨기기"}</button>` : ""}</div>
@@ -1267,6 +1298,12 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
     else if (t.dataset.goexam) { current = UPCOMING.find(e => !exams().includes(e)) || current; render(); document.querySelector(".sheet")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
     else if (t.id === "promoClose") { try { localStorage.setItem("gradecut-promo-closed", "1"); } catch {} $("promo").hidden = true; }
+    else if (t.dataset.goalmid) {
+      const mid = docs.find(x => x.id === t.dataset.goalmid);
+      if (mid) { const rank = semMode === "rank"; saveScore(rank ? semrKey(mid) : semKey(mid), rank ? t.dataset.grank : t.dataset.gscore);
+        $("status").textContent = `${t.querySelector("em")?.textContent || ""} 목표로 설정했어요 (기말 ${rank ? t.dataset.grank + "등" : t.dataset.gscore + "점"}).`; render();
+        document.querySelector(`[data-mid="${CSS.escape(mid.id)}"]`)?.closest(".sem")?.scrollIntoView({ behavior: "smooth", block: "center" }); }
+    }
     else if (t.dataset.semmode) { semMode = t.dataset.semmode; try { localStorage.setItem("gradecut-sem-mode", semMode); } catch {} render(); }
     else if (t.dataset.est) { const id = t.dataset.est; showEst = showEst.includes(id) ? showEst.filter(x => x !== id) : [...showEst, id]; saveEst(); render(); }
     else if (t.id === "clear") { $("clearAsk").hidden = false; $("move").hidden = true; $("moveBtn").setAttribute("aria-expanded", "false"); }
@@ -1290,7 +1327,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       const box = document.querySelector(`[data-score="${key}"]`); if (box) box.value = v;
       const sp = e.target.closest(".sem")?.querySelector(".sp"), m = { ...mid, my: myScore(mid.id) }, ps = rawOf(perfKey(mid));
       if (sp) sp.outerHTML = rank ? probRankHtml(m, null, parseInt(v), false, ps) : probHtml(m, null, parseFloat(v), false, ps);
-      const box2 = e.target.closest(".sem"); if (box2) animateNumbers(box2);
+      const box2 = e.target.closest(".sem"); if (box2) { animateNumbers(box2); moveAnim(box2); }
     }
   });
   document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
@@ -1308,6 +1345,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else { const h = document.documentElement; h.classList.add("theme-fade"); apply(); setTimeout(() => h.classList.remove("theme-fade"), 500); }
     try { if (t === "auto") localStorage.removeItem("gradecut-theme"); else localStorage.setItem("gradecut-theme", t); } catch {}
     document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
+    const th = document.querySelector("#theme .thumb"); if (th) { th.style.transform = `translateX(${["auto", "light", "dark"].indexOf(t) * 100}%)`; requestAnimationFrame(() => th.classList.add("ready")); }
   }
   setTheme(theme);
 
