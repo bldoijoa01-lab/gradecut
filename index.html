@@ -181,7 +181,9 @@ h1 span{color:var(--omr)}
 .sp-bar .g5{background:var(--muted);opacity:.3}
 .sp-leg{margin:0;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.76rem;font-variant-numeric:tabular-nums}
 .sp-leg .g1,.sp-leg .g2{color:var(--omr);font-weight:700}
-.semrange{width:100%;accent-color:var(--omr);margin:4px 0}
+.semrange{width:100%;accent-color:var(--omr);margin:4px 0 0;direction:rtl}
+.rr{display:flex;justify-content:space-between;font:500 .64rem var(--mono);color:var(--muted);margin-top:-2px}
+.sp-h small{font-size:.92em}
 .needs summary{cursor:pointer;font-size:.78rem;color:var(--muted)}
 .needs .need{margin-top:8px}
 .rawme{margin:0;font-size:.84rem}
@@ -608,7 +610,10 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     // 기말에서 x점 이상인 인원 (난이도 차이 없고 퍼짐이 k배일 때) → '기말 몇 등 안'으로 바꿀 때 씀
     const above = (x, k = 1) => { const y = mu + (x - mu) / k;
       return N * fb.reduce((a, b) => a + (y <= b.lo ? b.n : y < b.lo + 5 ? b.n * (b.lo + 5 - y) / 5 : 0), 0) / ft; };
-    return semCache[key] = { sets, N, above, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
+    // 기말 r등 자리의 점수 (난이도 차이 없고 퍼짐 그대로일 때): above(x) = r 인 x
+    const scoreAtRank = rr => { let a = 0, b = 100; if (above(0) <= rr) return 0;
+      for (let i = 0; i < 40; i++) { const c = (a + b) / 2; if (above(c) > rr) a = c; else b = c; } return (a + b) / 2; };
+    return semCache[key] = { sets, N, mu, above, scoreAtRank, R: [0.10, 0.34, 0.66, 0.90].map(q => Math.floor(q * N + 0.5)) };
   }
   // 합계 s점일 때 학기말 1~5등급 확률: 나보다 높은 사람 수 ~ 이항(N-1, p), 등수 ≤ R_g 이면 g등급 이내
   function semProbs(M, s, sets = M.sets) {
@@ -677,25 +682,52 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const perf = p && p.n >= 0 && p.n <= 50 ? p.n : 50;
     return { gp: semProbs(M, m.n + fx + 4 * (perf - 50)), raw: perf + (m.n + fx) / 4, perf, m };
   }
+  // 목표 등수 기준: 경우(난이도 dx, 퍼짐 k)마다 기말 r등이 몇 점인지 바꿔서 그 경우의 확률을 구해 평균.
+  // 등수로 정하면 난이도가 달라도 같은 자리라서 난이도 불확실성이 빠짐
+  function semGpRank(mid, fin, rr, pstr) {
+    const M = semModel(mid, fin), m = parse(mid.my), p = parse(pstr);
+    if (!M || !m) return null;
+    const perf = p && p.n >= 0 && p.n <= 50 ? p.n : 50, adj = 4 * (perf - 50), q = M.scoreAtRank(rr);
+    const gp = [0, 0, 0, 0, 0], fs = [];
+    for (const set of M.sets) {
+      const f = Math.max(0, Math.min(100, M.mu + set.k * (q - M.mu) + set.dx)); fs.push(f);
+      semProbs(M, m.n + f + adj, [set]).forEach((v, g) => { gp[g] += v / M.sets.length; });
+    }
+    return { gp, q, lo: Math.min(...fs), hi: Math.max(...fs), N: M.N };
+  }
+  const gpBlock = gp => {
+    const top = topGrade(gp);
+    return `<div class="sp-big"><b>${pctTxt(gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(gp[top])})` : ""}</span></div>
+      <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
+      <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p>`;
+  };
+  function probRankHtml(mid, fin, rr, guessed, pstr) {
+    const r = semGpRank(mid, fin, rr, pstr); if (!r) return "";
+    const pct = rr / r.N * 100;
+    return `<div class="sp"><p class="sp-h">${guessed ? "기말도 중간과 비슷한 " : "기말 "}<b>${rr}등</b>이면 <small>(${r.N}명 중 상위 ${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%)</small></p>
+      ${gpBlock(r.gp)}
+      <p class="rawme">기말 ${rr}등은 점수로 약 <b>${Math.round(r.q)}</b>점 <small>참고용 · 기말 난이도·점수 퍼짐에 따라 ${Math.round(r.lo)}~${Math.round(r.hi)}점</small></p></div>`;
+  }
   const pctTxt = p => p >= 0.995 ? "99% 이상" : p > 0 && p < 0.01 ? "1% 미만" : Math.round(p * 100) + "%";
   function probHtml(mid, fin, fx, guessed, pstr) {
     const r = semGp(mid, fin, fx, pstr); if (!r) return "";
-    const top = topGrade(r.gp);
-    const leg = r.gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("");
     return `<div class="sp"><p class="sp-h">${guessed ? "기말도 중간과 같은 " : "기말 "}<b>${num(fx)}</b>점이면</p>
-      <div class="sp-big"><b>${pctTxt(r.gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(r.gp[top])})` : ""}</span></div>
-      <div class="sp-bar" aria-hidden="true">${r.gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
-      <p class="sp-leg">${leg}</p>
+      ${gpBlock(r.gp)}
       <p class="rawme">학기말 원점수 <b>${num(r.raw)}</b>점 <small>= 중간 ${esc(r.m.raw)}×25% + 기말 ${num(fx)}×25% + 수행 ${num(r.perf)}</small></p></div>`;
   }
-  function semHtml(mid, fin, fstr, note = true, pstr = "", slider = false) {
+  function semHtml(mid, fin, fstr, note = true, pstr = "", slider = false, rstr = "") {
     const s = semInfo(mid, fin, fstr, pstr);
     if (!s.M) return `<div class="sem"><p class="sem-f">중간 분포 정보가 아직 없어서 학기말 등급을 계산할 수 없어요.</p></div>`;
     if (!s.m) return `<div class="sem"><p class="sem-f">중간 점수를 넣으면 학기말 등급 확률이 나와요.</p></div>`;
-    // 기말 목표가 비어 있으면 '기말도 중간과 같은 점수'로 먼저 보여줌 (저장은 안 함)
-    const guessed = !s.f, fx = s.f ? Math.max(0, Math.min(100, s.f.n)) : Math.max(0, Math.min(100, s.m.n));
-    const center = slider || s.f ? probHtml(mid, fin, fx, guessed, pstr) : `<p class="sem-f">기말 점수를 넣으면 학기말 등급 확률이 나와요.</p>`;
-    const range = slider ? `<input type="range" class="semrange" min="0" max="100" step="0.5" value="${fx}" data-mid="${esc(mid.id)}" aria-label="${esc(mid.subject)} 기말 목표 점수">` : "";
+    // 기말 전(slider): 목표 등수로. 비어 있으면 '기말도 중간과 비슷한 등수'로 먼저 보여줌 (저장은 안 함)
+    // 기말 데이터가 있으면: 실제 기말 점수로
+    let center, range = "";
+    if (slider) {
+      const N = s.M.N, r0 = parse(rstr), guessed = !r0;
+      const rr = Math.max(1, Math.min(N, Math.round(r0 ? r0.n : s.M.above(s.m.n))));
+      center = probRankHtml(mid, fin, rr, guessed, pstr);
+      range = `<input type="range" class="semrange" min="1" max="${N}" step="1" value="${rr}" data-mid="${esc(mid.id)}" aria-label="${esc(mid.subject)} 기말 목표 등수"><div class="rr" aria-hidden="true"><span>${N}등</span><span>1등</span></div>`;
+    } else center = s.f ? probHtml(mid, fin, Math.max(0, Math.min(100, s.f.n)), false, pstr) : `<p class="sem-f">기말 점수를 넣으면 학기말 등급 확률이 나와요.</p>`;
     const scoreTxt = x => !x.sr ? `점수로는 ${x.from}점 이상`
       : `점수로는 ${x.from}점 이상 · 기말 난이도·퍼짐 따라 ${x.sr[0] ?? 0}~${x.sr[1] ?? 100}${x.sr[1] === null ? "점↑" : "점"}`;
     const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 등이든 유력"
@@ -708,6 +740,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   }
   const semKey = mid => "sem-" + mid.id;
   const perfKey = mid => "perf-" + mid.id;
+  const semrKey = mid => "semr-" + mid.id;     // 기말 목표 등수
   const perfIn = mid => `<label>수행 (50점)<input class="myin" data-score="${esc(perfKey(mid))}" inputmode="decimal" placeholder="50" value="${esc(scores[perfKey(mid)]?.my || "")}"></label>`;
   // 기말 데이터가 들어온 뒤: 기말 과목 행마다 같은 과목 중간 점수와 합쳐 학기말 예상
   function semRow(fin) {
@@ -757,12 +790,12 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       $("examTitle").textContent = current + " · 기말 목표 계산기";
       $("count").textContent = "기말 컷 준비 중";
       $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요.</p>
-          <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수를 넣고 기말 목표 점수를 정하면, 학기말 1등급 확률을 바로 알려드려요. 막대를 움직이면서 기말에서 몇 점이 필요한지 감을 잡아 보세요.</p>
+          <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수를 넣고 기말 목표 등수를 정하면, 학기말 1등급 확률을 바로 알려드려요. 등수로 정하면 기말이 쉽든 어렵든 같은 자리라서, 점수로 정하는 것보다 정확해요. 막대를 움직이면서 기말에서 몇 등 안에 들어야 하는지 감을 잡아 보세요.</p>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map(d => {
           const midIn = `<label>중간 점수<input class="myin" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" value="${esc(d.my)}"></label>`;
-          const finIn = `<label>기말 목표<input class="myin" data-score="${esc(semKey(d))}" inputmode="decimal" placeholder="입력" value="${esc(scores[semKey(d)]?.my || "")}"></label>`;
-          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false, scores[perfKey(d)]?.my || "", true)}</div>`;
+          const finIn = `<label>기말 목표 등수<input class="myin" data-score="${esc(semrKey(d))}" inputmode="numeric" placeholder="예: 20" value="${esc(scores[semrKey(d)]?.my || "")}"></label>`;
+          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, "", false, scores[perfKey(d)]?.my || "", true, scores[semrKey(d)]?.my || "")}</div>`;
         }).join("");
       return;
     }
@@ -841,14 +874,14 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
   // 입력하는 즉시 저장 (칸을 벗어나지 않고 새로고침해도 남도록)
   document.addEventListener("input", e => {
     if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim());
-    // 기말 목표 슬라이더: 확률 블록만 바로 다시 그리고, 기말 목표 칸과 저장값도 맞춤
+    // 기말 목표 등수 슬라이더: 확률 블록만 바로 다시 그리고, 목표 등수 칸과 저장값도 맞춤
     if (e.target.classList?.contains("semrange")) {
       const mid = docs.find(x => x.id === e.target.dataset.mid); if (!mid) return;
-      const v = e.target.value, key = semKey(mid);
+      const v = e.target.value, key = semrKey(mid);
       saveScore(key, v);
       const box = document.querySelector(`[data-score="${key}"]`); if (box) box.value = v;
       const sp = e.target.closest(".sem")?.querySelector(".sp");
-      if (sp) sp.outerHTML = probHtml({ ...mid, my: scores[mid.id]?.my || "" }, null, parseFloat(v), false, scores[perfKey(mid)]?.my || "");
+      if (sp) sp.outerHTML = probRankHtml({ ...mid, my: scores[mid.id]?.my || "" }, null, parseInt(v), false, scores[perfKey(mid)]?.my || "");
     }
   });
   document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
