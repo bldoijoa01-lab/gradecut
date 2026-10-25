@@ -2,6 +2,12 @@
   "report_url": "https://forms.gle/z3MFfNft1ULjnNhc8",
   "items": [
     {
+      "at": "2026-10-25T15:40:00+09:00",
+      "kind": "feature",
+      "title": "오송고 2학년용임을 표시",
+      "detail": "이 사이트는 오송고 2학년 시험 기준이에요. 다른 학교·학년 컷과 헷갈리지 않게 맨 위와 저장 이미지에 표시했어요."
+    },
+    {
       "at": "2026-10-25T15:00:00+09:00",
       "kind": "feature",
       "title": "편의 기능 추가",

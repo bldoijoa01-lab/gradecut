@@ -19,9 +19,9 @@ const SUBJECTS = [
 const EXAMS = ["2026 2학기 중간", "2026 2학기 기말"];
 
 function createReportForm() {
-  const form = FormApp.create("등급컷 아카이브 정보 제보");
+  const form = FormApp.create("오송고 등급컷 아카이브 정보 제보");
   form.setDescription(
-    "알고 있는 등급컷·평균·점수대 인원을 알려주세요. 이름은 받지 않아요.\n" +
+    "오송고 2학년 시험의 등급컷·평균·점수대 인원을 알려주세요. 이름은 받지 않아요.\n" +
     "확실한 정보일수록 좋아요! 들은 곳을 같이 알려주면 얼마나 믿을지 정할 때 써요."
   );
   form.setCollectEmail(false);
@@ -74,7 +74,7 @@ function createReportForm() {
     .setLabels("잘 모르겠음", "확실함");
 
   // 응답을 스프레드시트로
-  const sheet = SpreadsheetApp.create("등급컷 아카이브 정보 제보 (응답)");
+  const sheet = SpreadsheetApp.create("오송고 등급컷 아카이브 정보 제보 (응답)");
   form.setDestination(FormApp.DestinationType.SPREADSHEET, sheet.getId());
 
   const shortUrl = form.shortenFormUrl(form.getPublishedUrl());
