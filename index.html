@@ -180,9 +180,10 @@ h1 span{color:var(--omr)}
 .raw-c small{font-size:.6rem;color:var(--muted);font-family:var(--mono);white-space:nowrap}
 .raw-c span.me{background:var(--omr-soft);border-color:transparent}
 .raw-c span.me b{color:var(--me)}
-.raw-c span.me small{white-space:normal;text-align:center}
+.raw-c span.me small{font-family:var(--sans)}
 .semin{grid-column:1/-1;display:flex;gap:10px}
 .semin label{flex:1;max-width:9em}
+.sem-f.warn{color:var(--omr)}
 .semin .myin{max-width:none}
 .soonhead{padding:16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:4px}
 .soonhead b{font-family:var(--mono);font-size:.95rem;letter-spacing:.12em;color:var(--omr)}
@@ -614,10 +615,13 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     return out;
   }
   const topGrade = gp => gp.reduce((bi, p, k) => (p > gp[bi] ? k : bi), 0);
-  function semInfo(mid, fin, fstr) {
-    const M = semModel(mid, fin), m = parse(mid.my), f = parse(fstr);
+  // 내 수행 점수(50점 만점). 다른 학생들은 만점으로 보므로, 수행 1점 감점 = 중간+기말 합계 4점 감점
+  function semInfo(mid, fin, fstr, pstr) {
+    const M = semModel(mid, fin), m = parse(mid.my), f = parse(fstr), p0 = parse(pstr);
+    const pBad = !!p0 && (p0.n < 0 || p0.n > 50), p = pBad ? null : p0;
     if (!M || !m) return { M, m };
-    const at = (x, sets) => semProbs(M, m.n + x, sets);
+    const perf = p ? p.n : 50, adj = 4 * (perf - 50);
+    const at = (x, sets) => semProbs(M, m.n + x + adj, sets);
     const upTo = (x, g, sets) => at(x, sets).slice(0, g + 1).reduce((a, p) => a + p, 0);
     // g등급 이내일 확률이 50%를 넘는 가장 낮은 기말 점수 (0점도 되면 0, 100점도 안 되면 null)
     const needOf = (g, sets) => {
@@ -647,12 +651,12 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       const v = M.sets.map(({ s: set }) => raw(set[Math.max(0, Math.min(set.length - 1, Math.round(set.length * (1 - Rg / M.N))))])).sort((a, b) => a - b);
       return { mid: v[v.length >> 1], lo: v[0], hi: v[v.length - 1] };
     });
-    const myRaw = f ? raw(m.n + f.n) : null;
-    return { M, m, f, gp, need, rawCuts, myRaw };
+    const myRaw = f ? perf + (m.n + f.n) / 4 : null;
+    return { M, m, f, p, pBad, gp, need, rawCuts, myRaw };
   }
-  const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어려운 경우를 넣었어요. "}수행평가는 모두 같은 점수라고 보고 계산에서 뺐어요. 원점수 예상 컷은 수행이 전부 만점일 때 기준이라, 수행에서 깎인 사람이 있으면 조금 낮아질 수 있어요.`;
-  function semHtml(mid, fin, fstr, note = true) {
-    const s = semInfo(mid, fin, fstr);
+  const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어려운 경우를 넣었어요. "}수행평가는 다른 학생들은 모두 만점(50점)이라고 보고, 내 수행 점수만 넣어 계산해요(비워 두면 만점). 수행 1점은 중간+기말 합계 4점과 같아요. 원점수 예상 컷은 수행이 전부 만점일 때 기준이라, 수행에서 깎인 사람이 있으면 조금 낮아질 수 있어요.`;
+  function semHtml(mid, fin, fstr, note = true, pstr = "") {
+    const s = semInfo(mid, fin, fstr, pstr);
     if (!s.M) return `<div class="sem"><p class="sem-f">중간 분포 정보가 아직 없어서 학기말 등급을 계산할 수 없어요.</p></div>`;
     if (!s.m) return `<div class="sem"><p class="sem-f">중간 점수를 넣으면 학기말 등급 예상이 나와요.</p></div>`;
     const res = s.gp ? (() => {
@@ -665,17 +669,19 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 등이든 유력"
       : x.from === null ? `기말 만점이어도 어려움 <small>(${x.best}%)</small>`
       : `기말 <b>약 ${x.rank}등</b> 안${x.rlo !== x.rhi ? ` <small>(${x.rlo}~${x.rhi}등)</small>` : ""}<small class="sc">${scoreTxt(x)}</small>`}</span>`).join("");
-    return `<div class="sem"><div class="sem-h">학기말 등급 예상 <small>중간 ${esc(s.m.raw)}점 기준 · 수행평가는 계산에서 뺐어요</small></div>
-      ${res}<div class="need">${need}</div>
-      <div class="raw"><div class="raw-h">학기말 원점수 예상 <small>수행 만점 가정 · 참고용</small></div><div class="raw-c">${s.rawCuts.map((c, i) => `<span><em>${i + 1}컷</em><b>${c.mid.toFixed(1)}</b><small>${c.lo.toFixed(1)}~${c.hi.toFixed(1)}</small></span>`).join("")}${s.myRaw != null ? `<span class="me"><em>나</em><b>${s.myRaw.toFixed(1)}</b><small>중간·기말 ${esc(s.m.raw)}·${esc(s.f.raw)}</small></span>` : ""}</div></div>
+    return `<div class="sem"><div class="sem-h">학기말 등급 예상 <small>중간 ${esc(s.m.raw)}점 · ${s.p ? `수행 ${esc(s.p.raw)}점 기준` : "수행 만점으로 계산"}</small></div>
+      ${s.pBad ? `<p class="sem-f warn">수행 점수는 50점 만점 기준으로 넣어 주세요. 지금은 만점으로 계산했어요.</p>` : ""}${res}<div class="need">${need}</div>
+      <div class="raw"><div class="raw-h">학기말 원점수 예상 <small>다른 학생 수행 만점 가정 · 참고용</small></div><div class="raw-c">${s.rawCuts.map((c, i) => `<span><em>${i + 1}컷</em><b>${c.mid.toFixed(1)}</b><small>${c.lo.toFixed(1)}~${c.hi.toFixed(1)}</small></span>`).join("")}${s.myRaw != null ? `<span class="me"><em>나</em><b>${s.myRaw.toFixed(1)}</b><small>수행 ${s.p ? esc(s.p.raw) : 50}점</small></span>` : ""}</div></div>
       ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
   }
   const semKey = mid => "sem-" + mid.id;
+  const perfKey = mid => "perf-" + mid.id;
+  const perfIn = mid => `<label>수행 (50점)<input class="myin" data-score="${esc(perfKey(mid))}" inputmode="decimal" placeholder="50" value="${esc(scores[perfKey(mid)]?.my || "")}"></label>`;
   // 기말 데이터가 들어온 뒤: 기말 과목 행마다 같은 과목 중간 점수와 합쳐 학기말 예상
   function semRow(fin) {
     const midExam = PAIR[fin.exam]; if (!midExam) return "";
     const mid = docs.find(x => x.exam === midExam && x.subject === fin.subject); if (!mid) return "";
-    return semHtml({ ...mid, my: scores[mid.id]?.my || "" }, fin, fin.my);
+    return `<div class="semin">${perfIn(mid)}</div>` + semHtml({ ...mid, my: scores[mid.id]?.my || "" }, fin, fin.my, true, scores[perfKey(mid)]?.my || "");
   }
 
   const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
@@ -724,7 +730,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
         + rows.map(d => {
           const midIn = `<label>중간 점수<input class="myin" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" value="${esc(d.my)}"></label>`;
           const finIn = `<label>기말 목표<input class="myin" data-score="${esc(semKey(d))}" inputmode="decimal" placeholder="입력" value="${esc(scores[semKey(d)]?.my || "")}"></label>`;
-          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false)}</div>`;
+          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false, scores[perfKey(d)]?.my || "")}</div>`;
         }).join("");
       return;
     }
