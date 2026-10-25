@@ -196,6 +196,8 @@ h1 span{color:var(--omr)}
 .semin{grid-column:1/-1;display:flex;gap:10px}
 .semin label{flex:1;max-width:9em}
 .sem-f.warn{color:var(--omr)}
+.myin.bad{border:2px solid #d6453b;color:#d6453b;background:rgba(214,69,59,.08)}
+.badmsg{display:block;font-size:.66rem;font-weight:700;color:#d6453b;margin-top:2px;white-space:normal;text-align:center}
 .semin .myin{max-width:none}
 .soonhead{padding:16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:4px}
 .soonhead b{font-family:var(--mono);font-size:.95rem;letter-spacing:.12em;color:var(--omr)}
@@ -243,10 +245,21 @@ h1 span{color:var(--omr)}
 html.theme-fade,html.theme-fade *,html.theme-fade *::before,html.theme-fade *::after{transition:background-color .45s ease,color .45s ease,border-color .45s ease,fill .45s ease,stroke .45s ease,box-shadow .45s ease!important}
 @media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}html.theme-fade,html.theme-fade *{transition:none!important}}
 .newb{font-style:normal;font-size:.6rem;font-weight:700;color:#fff;background:var(--omr);padding:1px 6px;border-radius:999px;margin-left:6px;vertical-align:3px}
-.sum-f{display:flex;justify-content:flex-end}
-.sum-f .icon{border-color:var(--rule)}
-.move{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:10px;background:var(--surface)}
-.move p{margin:0;color:var(--ink)}
+.mytools{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.mt-h{display:flex;align-items:baseline;gap:8px}
+.mt-h b{font-size:.92rem}
+.mt-h small{font-size:.74rem;color:var(--muted)}
+.mt-b{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tbtn{font:inherit;font-size:.8rem;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:10px 6px;border-radius:10px;border:1.5px solid var(--me);background:rgba(47,111,214,.07);color:var(--me);cursor:pointer;min-width:0;text-align:center;word-break:keep-all}
+.tbtn svg{width:20px;height:20px}
+.tbtn.danger{border-color:#d6453b;color:#d6453b;background:rgba(214,69,59,.07)}
+.tbtn:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+.tbtn[aria-expanded="true"]{background:var(--me);color:#fff}
+.clearask{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid #d6453b;border-radius:10px}
+.clearask p{margin:0;font-size:.84rem}
+.btn.danger{background:#d6453b}
+.move{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--me);border-radius:10px;background:var(--surface)}
+.move p{margin:0;color:var(--ink);font-size:.84rem}
 .move-r{display:flex;gap:8px}
 .move-r input{font-family:var(--mono);font-size:.72rem}
 .note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
@@ -268,7 +281,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 .btn.ghost{background:none;color:var(--muted);border:1px solid var(--rule);font-weight:500}
 .foot{display:flex;flex-direction:column;gap:6px;font-size:.78rem;color:var(--muted)}
 .foot p{margin:0}
-.status{font-size:.8rem;color:var(--muted);min-height:1.2em;margin:0}
+.status{font-size:.78rem;color:var(--muted);margin:0}
+.status:empty{display:none}
 @media (max-width:520px){
   .grid,.grid.g3{grid-template-columns:1fr}
   .grid4{grid-template-columns:repeat(2,1fr)}
@@ -324,18 +338,27 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 
   <section class="summary" id="summary" hidden></section>
 
+  <section class="mytools" aria-label="내 점수 관리">
+    <div class="mt-h"><b>내 점수</b><small>이 기기 브라우저에만 저장돼요</small></div>
+    <p class="status" id="status" aria-live="polite"></p>
+    <div class="mt-b">
+      <button class="tbtn" type="button" id="saveImg"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>이미지로 저장</button>
+      <button class="tbtn" type="button" id="moveBtn" aria-expanded="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M7 4.5l1.2-1.2a2.8 2.8 0 0 1 4 4L11 8.5M9 11.5l-1.2 1.2a2.8 2.8 0 0 1-4-4L5 7.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>다른 기기로 옮기기</button>
+      <button class="tbtn danger" type="button" id="clear"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>모두 지우기</button>
+    </div>
+    <div class="move" id="move" hidden><p>이 링크를 다른 기기에서 열면 내 점수와 선택과목이 그대로 옮겨져요. <b>링크를 받은 사람도 내 점수를 볼 수 있으니</b> 나만 쓰세요.</p><div class="move-r"><input id="moveLink" readonly aria-label="옮기기 링크"><button class="btn" type="button" id="moveCopy">복사</button></div></div>
+    <div class="clearask" id="clearAsk" hidden><p>넣은 점수, 기말 목표, 수행 점수를 모두 지울까요? 되돌릴 수 없어요.</p><div class="move-r"><button class="btn danger" type="button" id="clearYes">모두 지우기</button><button class="btn ghost" type="button" id="clearNo">취소</button></div></div>
+  </section>
+
   <section class="sheet" aria-live="polite">
     <div class="sheet-head"><b id="examTitle">불러오는 중…</b><small id="count"></small></div>
     <div id="rows"><div class="empty">등급컷을 불러오는 중이에요.</div></div>
   </section>
 
   <footer class="foot">
-    <p class="status" id="status"></p>
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
     <p class="legend">석차 신뢰도는 90% 범위가 얼마나 좁은지로 정해요 <span class="conf hi">높음</span> 범위 폭이 응시 인원의 6% 이하 <span class="conf mid">중간</span> 12% 이하 <span class="conf lo">낮음</span> 그보다 넓음</p>
     <p id="validation"></p>
-    <div class="move" id="move" hidden><p>이 링크를 다른 기기에서 열면 내 점수와 선택과목이 그대로 옮겨져요. <b>링크를 받은 사람도 내 점수를 볼 수 있으니</b> 나만 쓰세요.</p><div class="move-r"><input id="moveLink" readonly aria-label="옮기기 링크"><button class="btn" type="button" id="moveCopy">복사</button></div></div>
-    <p><button class="icon" type="button" id="moveBtn">다른 기기로 점수 옮기기</button> · <button class="icon" type="button" id="clear">내 점수 모두 지우기</button><span id="clearAsk" hidden> 정말 지울까요? <button class="icon danger" type="button" id="clearYes">지우기</button><button class="icon" type="button" id="clearNo">취소</button></span></p>
   </footer>
 </div>
 
@@ -387,6 +410,21 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const n = parseFloat(s.replace(/[^\d.]/g, ""));
     return isNaN(n) ? null : { n, unsure, raw: s.replace("?", "") };
   };
+  // 내가 넣는 값 검사: 빈칸은 괜찮고, 음수·글자·범위 밖이면 '잘못된 값' (계산에 안 씀)
+  const badNum = (v, lo, hi) => {
+    const s = String(v ?? "").trim(); if (!s) return false;
+    if (!/^\d+(\.\d+)?$/.test(s)) return true;
+    const n = parseFloat(s); return n < lo || n > hi;
+  };
+  const okVal = (v, lo, hi) => badNum(v, lo, hi) ? "" : String(v ?? "").trim();
+  const rawOf = id => scores[id]?.my || "";
+  const myScore = id => okVal(rawOf(id), 0, 100);
+  // 입력칸: 범위(data-lo/hi)를 달아 두고, 잘못된 값이면 빨간 테두리 + 안내
+  const numIn = (attrs, raw, lo, hi, unit) => {
+    const bad = badNum(raw, lo, hi);
+    return `<input class="myin${bad ? " bad" : ""}" ${attrs} data-lo="${lo}" data-hi="${hi}" data-unit="${unit}" value="${esc(raw)}"${bad ? ` aria-invalid="true"` : ""}>${bad ? `<small class="badmsg">${rangeMsg(lo, hi, unit)}</small>` : ""}`;
+  };
+  const rangeMsg = (lo, hi, unit) => `${lo}~${hi}${unit} 사이로 넣어 주세요`;
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
 
   // 개인 고정 등급(g)이 '?'(거의 확정)인데 컷으로 등급이 확정되면 컷 계산을 우선
@@ -454,7 +492,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 
   function summaryHtml(rows) {
     const items = rows.map(d => ({ d, g: gradeNum(d), m: parse(d.my) })).filter(x => x.m);
-    if (!items.length) return "";
+    if (!items.length) { lastSum = null; return ""; }
     const graded = items.filter(x => x.g);
     const avg = graded.length ? (graded.reduce((s, x) => s + x.g.n, 0) / graded.length).toFixed(2) : "—";
     const crOf = x => parseFloat(x.d.cr) || 0;
@@ -476,8 +514,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       tiles: items.map(({ d, g, m }) => ({ name: d.alias || d.subject, g: g ? g.n : null, u: !!g?.u, score: m.raw })) };
     return `<div class="sum-head"><div class="sum-avg">${wavg
       ? `<small>내 평균 등급 · 학점 가중</small><b>${wavg}<span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
-      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div><div class="sum-grid">${tiles}</div>
-      <div class="sum-f"><button class="icon" type="button" id="saveImg">이미지로 저장</button></div>`;
+      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div><div class="sum-grid">${tiles}</div>`;
   }
 
   function badge(d) {
@@ -727,8 +764,8 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const topGrade = gp => gp.reduce((bi, p, k) => (p > gp[bi] ? k : bi), 0);
   // 내 수행 점수(50점 만점). 다른 학생들은 만점으로 보므로, 수행 1점 감점 = 중간+기말 합계 4점 감점
   function semInfo(mid, fin, fstr, pstr) {
-    const M = semModel(mid, fin), m = parse(mid.my), f = parse(fstr), p0 = parse(pstr);
-    const pBad = !!p0 && (p0.n < 0 || p0.n > 50), p = pBad ? null : p0;
+    const M = semModel(mid, fin), m = parse(mid.my), f = parse(fstr);
+    const pBad = badNum(pstr, 0, 50), p = pBad ? null : parse(pstr);
     if (!M || !m) return { M, m };
     const perf = p ? p.n : 50, adj = 4 * (perf - 50);
     const at = (x, sets) => semProbs(M, m.n + x + adj, sets);
@@ -771,17 +808,17 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어렵고, 점수가 25%까지 더 모이거나 퍼지는 경우를 넣었어요. "}수행평가는 다른 학생들은 모두 만점(50점)이라고 보고, 내 수행 점수만 넣어 계산해요(비워 두면 만점). 수행 1점은 중간+기말 합계 4점과 같아요.`;
   // 확률 블록: 기말 x점일 때 학기말 등급 확률 (슬라이더를 움직이면 이 블록만 다시 그림)
   function semGp(mid, fin, fx, pstr) {
-    const M = semModel(mid, fin), m = parse(mid.my), p = parse(pstr);
+    const M = semModel(mid, fin), m = parse(mid.my), p = badNum(pstr, 0, 50) ? null : parse(pstr);
     if (!M || !m) return null;
-    const perf = p && p.n >= 0 && p.n <= 50 ? p.n : 50;
+    const perf = p ? p.n : 50;
     return { gp: semProbs(M, m.n + fx + 4 * (perf - 50)), raw: perf + (m.n + fx) / 4, perf, m };
   }
   // 목표 등수 기준: 경우(난이도 dx, 퍼짐 k)마다 기말 r등이 몇 점인지 바꿔서 그 경우의 확률을 구해 평균.
   // 등수로 정하면 난이도가 달라도 같은 자리라서 난이도 불확실성이 빠짐
   function semGpRank(mid, fin, rr, pstr) {
-    const M = semModel(mid, fin), m = parse(mid.my), p = parse(pstr);
+    const M = semModel(mid, fin), m = parse(mid.my), p = badNum(pstr, 0, 50) ? null : parse(pstr);
     if (!M || !m) return null;
-    const perf = p && p.n >= 0 && p.n <= 50 ? p.n : 50, adj = 4 * (perf - 50), q = M.scoreAtRank(rr);
+    const perf = p ? p.n : 50, adj = 4 * (perf - 50), q = M.scoreAtRank(rr);
     const gp = [0, 0, 0, 0, 0], fs = [];
     for (const set of M.sets) {
       const f = Math.max(0, Math.min(100, M.mu + set.k * (q - M.mu) + set.dx)); fs.push(f);
@@ -839,12 +876,12 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const semKey = mid => "sem-" + mid.id;
   const perfKey = mid => "perf-" + mid.id;
   const semrKey = mid => "semr-" + mid.id;     // 기말 목표 등수
-  const perfIn = mid => `<label>수행 (50점)<input class="myin" data-score="${esc(perfKey(mid))}" inputmode="decimal" placeholder="50" value="${esc(scores[perfKey(mid)]?.my || "")}"></label>`;
+  const perfIn = mid => `<label>수행 (50점)${numIn(`data-score="${esc(perfKey(mid))}" inputmode="decimal" placeholder="50"`, rawOf(perfKey(mid)), 0, 50, "점")}</label>`;
   // 기말 과목 → 같은 과목 중간 (내 중간 점수 포함, 정보 적은 과목은 보기 설정 따름)
   function midOf(fin) {
     const midExam = PAIR[fin.exam]; if (!midExam) return null;
     const mid = docs.find(x => x.exam === midExam && x.subject === fin.subject);
-    return mid ? viewOf({ ...mid, my: scores[mid.id]?.my || "" }) : null;
+    return mid ? viewOf({ ...mid, my: myScore(mid.id) }) : null;
   }
   // 중간 → 기말 비교: 등급과 등수(상위 %, 응시 인원이 달라도 비교되게)
   function cmpHtml(fin) {
@@ -864,7 +901,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   function semRow(fin) {
     const midExam = PAIR[fin.exam]; if (!midExam) return "";
     const mid = docs.find(x => x.exam === midExam && x.subject === fin.subject); if (!mid) return "";
-    return `<div class="semin">${perfIn(mid)}</div>` + semHtml({ ...mid, my: scores[mid.id]?.my || "" }, fin, fin.my, true, scores[perfKey(mid)]?.my || "");
+    return `<div class="semin">${perfIn(mid)}</div>` + semHtml({ ...mid, my: myScore(mid.id) }, fin, fin.my, true, rawOf(perfKey(mid)));
   }
 
   const exams = () => [...new Set(docs.map(d => d.exam))].sort().reverse();
@@ -902,7 +939,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       : `<div class="row2"><div class="mine">선택과목 <b>${chosen.length}</b> · ${chosen.map(esc).join(" · ") || "없음"}</div><button class="icon" type="button" id="pickEdit">바꾸기</button></div>`;
     const rows = examDocs.filter(d => d.common || chosen.includes(d.subject))
       .sort((a, b) => (b.common ? 1 : 0) - (a.common ? 1 : 0) || a.subject.localeCompare(b.subject, "ko"))
-      .map(d => viewOf({ ...d, my: scores[d.id]?.my || "", g: scores[d.id]?.g || "" }));
+      .map(d => viewOf({ ...d, my: myScore(d.id), g: scores[d.id]?.g || "" }));
     if (isSoon) {
       $("summary").hidden = true;
       $("examTitle").textContent = current + " · 기말 목표 계산기";
@@ -913,10 +950,13 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           <p class="sem-f">${semMode === "rank" ? "등수로 정하면 기말이 쉽든 어렵든 같은 자리라서 확률이 더 정확해요." : "점수로 정하면 기말이 쉬운지 어려운지에 따라 같은 점수도 자리가 달라져서, 그만큼 확률이 덜 확실해요."}</p>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map(d => {
-          const midIn = `<label>중간 점수<input class="myin" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" value="${esc(d.my)}"></label>`;
+          const midIn = `<label>중간 점수${numIn(`data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력"`, rawOf(d.id), 0, 100, "점")}</label>`;
           const fk = semMode === "rank" ? semrKey(d) : semKey(d);
-          const finIn = `<label>${semMode === "rank" ? "기말 목표 등수" : "기말 목표 점수"}<input class="myin" data-score="${esc(fk)}" inputmode="${semMode === "rank" ? "numeric" : "decimal"}" placeholder="${semMode === "rank" ? "예: 20" : "입력"}" value="${esc(scores[fk]?.my || "")}"></label>`;
-          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false, scores[perfKey(d)]?.my || "", true, scores[semrKey(d)]?.my || "")}</div>`;
+          const N = parseInt(d.n) || 999;
+          const finIn = semMode === "rank"
+            ? `<label>기말 목표 등수${numIn(`data-score="${esc(fk)}" inputmode="numeric" placeholder="예: 20"`, rawOf(fk), 1, N, "등")}</label>`
+            : `<label>기말 목표 점수${numIn(`data-score="${esc(fk)}" inputmode="decimal" placeholder="입력"`, rawOf(fk), 0, 100, "점")}</label>`;
+          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, okVal(rawOf(semKey(d)), 0, 100), false, rawOf(perfKey(d)), true, okVal(rawOf(semrKey(d)), 1, N))}</div>`;
         }).join("");
       return;
     }
@@ -937,7 +977,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           : `<b>${esc(p.raw)}</b>`) : `<b class="none">—</b>`}</div>`;
       }).join("");
       const myP = parse(d.my);
-      const me = `<div class="cell me"><i>내 점수</i><input class="myin" id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수" value="${esc(d.my)}">${rankHtml(d)}</div>`;
+      const me = `<div class="cell me"><i>내 점수</i>${numIn(`id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수"`, rawOf(d.id), 0, 100, "점")}${rankHtml(d)}</div>`;
       const ticks = [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]); if (!p) return "";
         return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${Math.max(0, Math.min(100, p.n))}%"><span>${i + 1}</span></div>`;
@@ -966,7 +1006,10 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const prev = scores[id] || {};
     const body = prev.g && prev.my === val ? { my: val, g: prev.g } : { my: val };
     if (!val) delete scores[id]; else scores[id] = body;
-    $("status").textContent = saveLocal() ? "내 점수를 이 브라우저에 저장했어요." : "이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라져요.";
+    const ok = saveLocal(), el = document.querySelector(`[data-score="${CSS.escape(id)}"][data-lo]`);
+    const bad = el && badNum(val, +el.dataset.lo, +el.dataset.hi);
+    $("status").textContent = bad ? rangeMsg(el.dataset.lo, el.dataset.hi, el.dataset.unit) + ". 이 값은 계산에 안 써요."
+      : ok ? "내 점수를 이 브라우저에 저장했어요." : "이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라져요.";
   }
 
   // 분포 막대: 누르거나(휴대폰) 마우스를 올리면 아래 줄에 인원 표시
@@ -992,25 +1035,31 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else if (t.id === "pickDone") { if (!sel) sel = []; picking = false; saveSel(); render(); }
     else if (t.id === "pickEdit") { picking = true; render(); }
     else if (t.dataset.themeSet) setTheme(t.dataset.themeSet, true);
-    else if (t.id === "saveImg") saveImage();
-    else if (t.id === "moveBtn") { const box = $("move"); box.hidden = !box.hidden; if (!box.hidden) { $("moveLink").value = moveLink(); $("moveLink").select(); } }
+    else if (t.id === "saveImg") { if (lastSum) saveImage(); else $("status").textContent = "점수를 하나 이상 넣으면 이미지를 만들 수 있어요."; }
+    else if (t.id === "moveBtn") { const box = $("move"); box.hidden = !box.hidden; t.setAttribute("aria-expanded", String(!box.hidden)); $("clearAsk").hidden = true; if (!box.hidden) { $("moveLink").value = moveLink(); $("moveLink").select(); } }
     else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
     else if (t.dataset.semmode) { semMode = t.dataset.semmode; try { localStorage.setItem("gradecut-sem-mode", semMode); } catch {} render(); }
     else if (t.dataset.est) { const id = t.dataset.est; showEst = showEst.includes(id) ? showEst.filter(x => x !== id) : [...showEst, id]; saveEst(); render(); }
-    else if (t.id === "clear") { $("clearAsk").hidden = false; }
+    else if (t.id === "clear") { $("clearAsk").hidden = false; $("move").hidden = true; $("moveBtn").setAttribute("aria-expanded", "false"); }
     else if (t.id === "clearNo") { $("clearAsk").hidden = true; }
     else if (t.id === "clearYes") { scores = {}; saveLocal(); $("clearAsk").hidden = true; $("status").textContent = "내 점수를 모두 지웠어요."; render(); }
   });
   // 입력하는 즉시 저장 (칸을 벗어나지 않고 새로고침해도 남도록)
   document.addEventListener("input", e => {
     if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim());
+    // 쓰는 중에도 범위 밖이면 바로 빨간 테두리 (안내 문구는 칸을 벗어나면 다시 그리면서 나옴)
+    if (e.target.dataset?.lo != null && e.target.classList.contains("myin")) {
+      const { lo, hi, unit } = e.target.dataset, bad = badNum(e.target.value, +lo, +hi);
+      e.target.classList.toggle("bad", bad);
+      if (bad) e.target.setAttribute("aria-invalid", "true"); else e.target.removeAttribute("aria-invalid");
+    }
     // 기말 목표 슬라이더(등수/점수): 확률 블록만 바로 다시 그리고, 목표 칸과 저장값도 맞춤
     if (e.target.classList?.contains("semrange")) {
       const mid = docs.find(x => x.id === e.target.dataset.mid); if (!mid) return;
       const rank = e.target.dataset.mode === "rank", v = e.target.value, key = rank ? semrKey(mid) : semKey(mid);
       saveScore(key, v);
       const box = document.querySelector(`[data-score="${key}"]`); if (box) box.value = v;
-      const sp = e.target.closest(".sem")?.querySelector(".sp"), m = { ...mid, my: scores[mid.id]?.my || "" }, ps = scores[perfKey(mid)]?.my || "";
+      const sp = e.target.closest(".sem")?.querySelector(".sp"), m = { ...mid, my: myScore(mid.id) }, ps = rawOf(perfKey(mid));
       if (sp) sp.outerHTML = rank ? probRankHtml(m, null, parseInt(v), false, ps) : probHtml(m, null, parseFloat(v), false, ps);
     }
   });
