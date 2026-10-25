@@ -45,13 +45,21 @@ h1 span{color:var(--omr)}
 .sum-count span.c1{background:var(--omr);border-color:var(--omr);color:#fff}
 .sum-count span.c2{border-color:var(--omr);color:var(--omr)}
 .sum-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.tile{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;min-width:0}
-.tile .tg{grid-row:1/3;font-family:var(--mono);font-size:2rem;font-weight:600;line-height:1;width:1.3em;text-align:center;color:var(--muted)}
+.tile{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;min-width:0}
+.tile .tg{grid-row:1/4;font-family:var(--mono);font-size:2rem;font-weight:600;line-height:1;width:1.3em;text-align:center;color:var(--muted)}
 .tile .tn{font-weight:700;font-size:.9rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile .ts{font-size:.76rem;color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums}
 .tile.g1{background:var(--omr-soft);border-color:transparent}
 .tile.g1 .tg,.tile.g2 .tg{color:var(--omr)}
 .tile.u .tg::after{content:"?";font-size:.45em;vertical-align:top}
+.tile .ts{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;white-space:nowrap}
+.tile .tgap{font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tile .tp{font-family:var(--sans);font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;color:var(--omr);background:color-mix(in srgb,var(--omr) 12%,transparent);font-variant-numeric:tabular-nums}
+.tile .tp.lo{color:#c27a0b;background:rgba(194,122,11,.15)}
+.tile .tp.sure{color:#1e9a55;background:rgba(30,154,85,.13)}
+.sum-rng{margin:0;font-size:.82rem}
+.sum-rng b{font-family:var(--mono);color:var(--omr);font-size:1.05em}
+.sum-rng small{display:block;color:var(--muted);font-size:.72rem}
 .sheet{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
 .sheet-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 16px;border-bottom:2px solid var(--omr)}
 .sheet-head b{font-size:1rem}
@@ -520,8 +528,38 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   }
   const gradeNum = d => gradeInfo(d);
 
+  // 과목별 등급 확률 분포: 확정이면 그 등급 100%, 확률이 있으면 시뮬레이션 값 (합 1로 맞춤)
+  function gradeDist(d, g, m) {
+    if (!g) return null;
+    if (g.below || (!g.u && !g.prob)) return { fixed: true, p: [0, 1, 2, 3, 4].map(k => k === g.n - 1 ? 1 : 0) };
+    const s = parseFloat(d.n) ? simAt(d, m.n) : null;
+    if (!s || !s.gp) return { fixed: true, p: [0, 1, 2, 3, 4].map(k => k === g.n - 1 ? 1 : 0) };
+    const t = s.gp.reduce((a, v) => a + v, 0) || 1;
+    return { fixed: false, p: s.gp.map(v => v / t) };
+  }
+  const tileProb = (g, dist) => !g ? "" : g.below ? `<span class="tp">${g.n}등급 이하</span>`
+    : dist && !dist.fixed ? `<span class="tp${dist.p[g.n - 1] < 0.7 ? " lo" : ""}">${pctTxt(dist.p[g.n - 1])}</span>` : `<span class="tp sure">확정</span>`;
+  // 평균 등급의 90% 범위: 과목마다 등급을 확률대로 뽑아 평균 내기를 여러 번 (과목끼리는 따로따로라고 봄)
+  function avgRange(graded, weighted) {
+    if (!graded.some(x => x.dist && !x.dist.fixed)) return null;
+    const r = rng(7), K = 3000, out = new Float64Array(K);
+    const w = graded.map(x => weighted ? parseFloat(x.d.cr) || 0 : 1), W = w.reduce((a, b) => a + b, 0) || 1;
+    for (let k = 0; k < K; k++) {
+      let sum = 0;
+      graded.forEach((x, i) => {
+        let u = r(), gi = 0; const p = x.dist ? x.dist.p : null;
+        if (!p) gi = x.g.n - 1; else { while (gi < 4 && u > p[gi]) { u -= p[gi]; gi++; } }
+        sum += (gi + 1) * w[i];
+      });
+      out[k] = sum / W;
+    }
+    out.sort();
+    return [out[Math.floor(K * 0.05)], out[Math.floor(K * 0.95)]];
+  }
+
   function summaryHtml(rows) {
     const items = rows.map(d => ({ d, g: gradeNum(d), m: parse(d.my) })).filter(x => x.m);
+    items.forEach(x => { x.dist = gradeDist(x.d, x.g, x.m); });
     if (!items.length) { lastSum = null; return ""; }
     const graded = items.filter(x => x.g);
     const avg = graded.length ? (graded.reduce((s, x) => s + x.g.n, 0) / graded.length).toFixed(2) : "—";
@@ -531,20 +569,24 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       ? (graded.reduce((s, x) => s + x.g.n * crOf(x), 0) / totalCr).toFixed(2) : null;
     const counts = {}; graded.forEach(x => counts[x.g.n] = (counts[x.g.n] || 0) + 1);
     items.sort((a, b) => (a.g?.n ?? 9) - (b.g?.n ?? 9) || b.m.n - a.m.n);
-    const tiles = items.map(({ d, g, m }) => {
+    const tiles = items.map(({ d, g, m, dist }) => {
       const c1 = parse((d.c || [])[0]);
       const gap = c1 && !(d.c?.[0] || "").includes("↑") ? (m.n - c1.n) : null;
-      const gapTxt = gap === null ? "" : ` · 1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
+      const gapTxt = gap === null ? "" : `1컷 ${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(1).replace(/\.0$/, "")}`;
       const mid = midOf(d), mg = mid && parse(mid.my) ? gradeInfo(mid) : null;
       const midTxt = mg ? ` · 중간 ${mg.n}${mg.below ? "↓" : ""}` : "";
-      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u && g.tip ? ` tabindex="0" data-tip="${esc(g.tip)}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${gapTxt}${midTxt}</span></div>`;
+      return `<div class="tile ${g ? "g" + g.n : ""}${g?.u ? " u" : ""}"${g?.u && g.tip ? ` tabindex="0" data-tip="${esc(g.tip)}"` : ""}><span class="tg">${g ? g.n : "?"}</span><span class="tn">${esc(d.alias || d.subject)}</span><span class="ts">${esc(m.raw)}점${tileProb(g, dist)}</span>${gapTxt || midTxt ? `<span class="tgap">${[gapTxt, midTxt.replace(/^ · /, "")].filter(Boolean).join(" · ")}</span>` : ""}</div>`;
     }).join("");
     const chips = Object.keys(counts).sort().map(k => `<span class="c${k}">${k}등급 ${counts[k]}과목</span>`).join("");
-    lastSum = { exam: current, avg: wavg || avg, label: wavg ? "학점 가중 평균 등급" : "평균 등급", sub: wavg ? `${graded.length}과목 · ${totalCr}학점` : `${graded.length}과목`,
-      tiles: items.map(({ d, g, m }) => ({ name: d.alias || d.subject, g: g ? g.n : null, u: !!g?.u, score: m.raw })) };
+    const ar = avgRange(graded, !!wavg), arTxt = ar && ar[1] - ar[0] >= 0.005 ? `${ar[0].toFixed(2)}~${ar[1].toFixed(2)}` : null;
+    lastSum = { exam: current, avg: wavg || avg, label: wavg ? "학점 가중 평균 등급" : "평균 등급", sub: wavg ? `${graded.length}과목 · ${totalCr}학점` : `${graded.length}과목`, range: arTxt,
+      tiles: items.map(({ d, g, m, dist }) => ({ name: d.alias || d.subject, g: g ? g.n : null, u: !!g?.u, score: m.raw,
+        below: !!g?.below, prob: !g ? "" : g.below ? "이하" : dist && !dist.fixed ? pctTxt(dist.p[g.n - 1]) : "확정" })) };
     return `<div class="sum-head"><div class="sum-avg">${wavg
       ? `<small>내 평균 등급 · 학점 가중</small><b>${wavg}<span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
-      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div><div class="sum-grid">${tiles}</div>`;
+      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div>
+      ${arTxt ? `<p class="sum-rng">확률까지 반영하면 평균 등급은 <b>${arTxt}</b> 사이일 확률이 90%예요 <small>(위 숫자는 과목마다 가장 유력한 등급으로 낸 평균)</small></p>` : ""}
+      <div class="sum-grid">${tiles}</div>`;
   }
 
   function badge(d) {
@@ -1197,13 +1239,15 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     c.fillStyle = MUTED; c.font = `500 26px ${sans}`; c.fillText(`${S.exam} · 내 예상 등급`, pad, 140);
     c.fillStyle = MUTED; c.font = `500 24px ${sans}`; c.fillText(S.label, pad, 215);
     c.fillStyle = OMR; c.font = `600 88px ${mono}`; c.fillText(S.avg, pad, 300);
-    const aw = c.measureText(S.avg).width; c.fillStyle = MUTED; c.font = `500 26px ${sans}`; c.fillText(S.sub, pad + aw + 20, 296);
+    const aw = c.measureText(S.avg).width; c.fillStyle = MUTED; c.font = `500 26px ${sans}`; c.fillText(S.sub, pad + aw + 20, S.range ? 262 : 296);
+    if (S.range) { c.fillStyle = OMR; c.font = `700 24px ${sans}`; c.fillText(`90% 범위 ${S.range}`, pad + aw + 20, 298); }
     S.tiles.forEach((t, i) => {
       const x = pad + (i % cols) * (tw + gap * 2), y = top + Math.floor(i / cols) * (th + gap);
       rr(x, y, tw, th, 18); c.fillStyle = t.g === 1 ? SOFT : "#ffffff"; c.fill(); c.strokeStyle = t.g === 1 ? SOFT : RULE; c.lineWidth = 2; c.stroke();
-      c.fillStyle = t.g && t.g <= 2 ? OMR : MUTED; c.font = `600 76px ${mono}`; c.fillText(t.g ? String(t.g) + (t.u ? "?" : "") : "?", x + 30, y + 100);
+      c.fillStyle = t.g && t.g <= 2 ? OMR : MUTED; c.font = `600 76px ${mono}`; c.fillText(t.g ? String(t.g) + (t.below ? "↓" : t.u ? "?" : "") : "?", x + 30, y + 100);
       c.fillStyle = INK; c.font = `700 30px ${sans}`; c.fillText(t.name.length > 9 ? t.name.slice(0, 9) + "…" : t.name, x + 150, y + 68);
       c.fillStyle = MUTED; c.font = `500 26px ${mono}`; c.fillText(t.score + "점", x + 150, y + 110);
+      if (t.prob) { const sw = c.measureText(t.score + "점").width; c.fillStyle = t.prob === "확정" ? "#1e9a55" : OMR; c.font = `700 24px ${sans}`; c.fillText(t.prob === "확정" || t.prob === "이하" ? t.prob : "확률 " + t.prob, x + 150 + sw + 16, y + 110); }
     });
     c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
     c.fillText("추정 컷이 들어간 과목은 실제 컷이 나오면 바뀔 수 있어요.", pad, H - 60);
