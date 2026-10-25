@@ -230,8 +230,18 @@ h1 span{color:var(--omr)}
 .cmp em{font-style:normal;font-size:.8rem;font-weight:700;margin-left:auto}
 .cmp em.up{color:#1e9a55}.cmp em.down{color:#d6453b}.cmp em.same{color:var(--muted)}
 .cmp-n{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
-.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.icon.theme{border-color:var(--rule);white-space:nowrap}
+.toprow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.toprow h1{white-space:nowrap}
+.themes{display:inline-flex;flex:none;padding:3px;gap:2px;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
+.themes button{font:inherit;font-size:.76rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border:0;border-radius:999px;background:none;color:var(--omr);cursor:pointer;white-space:nowrap}
+.themes button svg{width:14px;height:14px}
+.themes button[aria-pressed="true"]{background:var(--omr);color:#fff}
+.themes button:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+@media (max-width:400px){.themes button{padding:5px 7px;font-size:.72rem}}
+/* 테마 바꿀 때 부드럽게 (눈부심 줄이기) */
+::view-transition-old(root),::view-transition-new(root){animation-duration:.45s;animation-timing-function:ease}
+html.theme-fade,html.theme-fade *,html.theme-fade *::before,html.theme-fade *::after{transition:background-color .45s ease,color .45s ease,border-color .45s ease,fill .45s ease,stroke .45s ease,box-shadow .45s ease!important}
+@media (prefers-reduced-motion:reduce){::view-transition-old(root),::view-transition-new(root){animation:none}html.theme-fade,html.theme-fade *{transition:none!important}}
 .newb{font-style:normal;font-size:.6rem;font-weight:700;color:#fff;background:var(--omr);padding:1px 6px;border-radius:999px;margin-left:6px;vertical-align:3px}
 .sum-f{display:flex;justify-content:flex-end}
 .sum-f .icon{border-color:var(--rule)}
@@ -298,7 +308,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 <body>
 <div class="wrap">
   <header>
-    <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><button class="icon theme" type="button" id="theme" aria-label="화면 테마 바꾸기">화면: 자동</button></div>
+    <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><div class="themes" id="theme" role="group" aria-label="화면 테마"><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
     <p class="sub">2학년 · 5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
     <p class="asof" id="asof">등급컷 불러오는 중</p>
     <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
@@ -981,7 +991,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     }
     else if (t.id === "pickDone") { if (!sel) sel = []; picking = false; saveSel(); render(); }
     else if (t.id === "pickEdit") { picking = true; render(); }
-    else if (t.id === "theme") { const order = ["auto", "light", "dark"]; setTheme(order[(order.indexOf(theme) + 1) % 3]); }
+    else if (t.dataset.themeSet) setTheme(t.dataset.themeSet, true);
     else if (t.id === "saveImg") saveImage();
     else if (t.id === "moveBtn") { const box = $("move"); box.hidden = !box.hidden; if (!box.hidden) { $("moveLink").value = moveLink(); $("moveLink").select(); } }
     else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
@@ -1010,11 +1020,15 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 
   // 화면 테마: auto(휴대폰 설정 따라) / light / dark
   let theme = (() => { try { const t = localStorage.getItem("gradecut-theme"); return t === "light" || t === "dark" ? t : "auto"; } catch { return "auto"; } })();
-  function setTheme(t) {
+  function setTheme(t, fade = false) {
     theme = t;
-    if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    const apply = () => { if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; };
+    const calm = !fade || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (calm) apply();
+    else if (document.startViewTransition) document.startViewTransition(apply);        // 화면 전체를 천천히 겹쳐 바꿈
+    else { const h = document.documentElement; h.classList.add("theme-fade"); apply(); setTimeout(() => h.classList.remove("theme-fade"), 500); }
     try { if (t === "auto") localStorage.removeItem("gradecut-theme"); else localStorage.setItem("gradecut-theme", t); } catch {}
-    $("theme").textContent = "화면: " + { auto: "자동", light: "라이트", dark: "다크" }[t];
+    document.querySelectorAll("[data-theme-set]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.themeSet === t)));
   }
   setTheme(theme);
 
