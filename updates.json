@@ -2,6 +2,12 @@
   "report_url": "https://forms.gle/z3MFfNft1ULjnNhc8",
   "items": [
     {
+      "at": "2026-10-25T20:57:00+09:00",
+      "kind": "feature",
+      "title": "🎯 기말 목표 계산기, 메인에서 바로",
+      "detail": "맨 위 배너나 '목표 계산기 OPEN' 칩, 요약 카드의 '학기말 등급 예상해 보기'를 누르면 바로 기말 목표 계산기로 가요."
+    },
+    {
       "at": "2026-10-25T17:55:00+09:00",
       "kind": "feature",
       "title": "확실한 등급은 '확정'으로",

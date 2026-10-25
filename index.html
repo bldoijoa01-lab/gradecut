@@ -163,6 +163,19 @@ h1 span{color:var(--omr)}
 .goal span.keep{border-color:var(--rule);color:var(--ink)}
 .goal span small{color:var(--muted);font-size:.92em}
 .chip.soon{border-style:dashed;color:var(--muted)}
+.promo{margin:6px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:16px;border-radius:14px;color:#fff;background:linear-gradient(135deg,#d43d63,#8a4fd1);box-shadow:0 6px 20px rgba(212,61,99,.25)}
+.promo-t{flex:1 1 240px;min-width:0}
+.promo-t b{font-size:1.15rem;margin-left:6px}
+.promo-t p{margin:4px 0 0;font-size:.84rem;opacity:.95;word-break:keep-all}
+.promo-tag{font-size:.66rem;font-weight:700;padding:2px 7px;border-radius:999px;background:#fff;color:#d43d63;vertical-align:2px}
+.promo-b{display:flex;align-items:center;gap:6px}
+.promo .btn{background:#fff;color:#d43d63}
+.promo .icon{color:#fff;opacity:.85}
+.promo .icon:hover{border-color:rgba(255,255,255,.5);color:#fff}
+.chip.soon em.open{background:var(--omr);color:#fff}
+@media (prefers-reduced-motion:no-preference){.chip.soon em.open{animation:blink 1.6s ease-in-out infinite}}
+@keyframes blink{50%{opacity:.45}}
+.sum-go{font:inherit;font-size:.86rem;font-weight:700;padding:10px 12px;border-radius:10px;border:1.5px dashed var(--omr);background:none;color:var(--omr);cursor:pointer;text-align:center}
 .chip.soon em{font-style:normal;font-size:.68rem;font-weight:700;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--omr-soft);color:var(--omr)}
 .chip.soon[aria-pressed="true"]{background:var(--surface);border-color:var(--omr);color:var(--ink)}
 .soonbox{padding:40px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -353,6 +366,10 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   <header>
     <p class="school">오송고 2학년을 위한</p>
     <div class="toprow"><h1>등급컷 <span>아카이브</span></h1><div class="themes" id="theme" role="group" aria-label="화면 테마"><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
+  <section class="promo" id="promo" aria-label="기말 목표 계산기" hidden>
+      <div class="promo-t"><span class="promo-tag">NEW</span><b>기말 목표 계산기 오픈!</b><p>중간 점수만 넣으면, 학기말 1등급 받으려면 기말에서 몇 등 안에 들어야 하는지 알려드려요.</p></div>
+      <div class="promo-b"><button class="btn" type="button" data-goexam="soon">계산해 보기 →</button><button class="icon" type="button" id="promoClose" aria-label="배너 닫기">닫기</button></div>
+    </section>
     <p class="sub">5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
     <p class="scope">오송고등학교 2학년 시험 기준이에요. 다른 학교나 다른 학년의 등급컷과는 달라요. 학교 공식 자료가 아니라 학생들이 모은 정보로 만든 사이트예요.</p>
     <p class="asof" id="asof">등급컷 불러오는 중</p>
@@ -593,7 +610,8 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       ? `<small>내 평균 등급 · 학점 가중</small><b>${wavg}<span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
       : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div>
       ${arTxt ? `<p class="sum-rng">확률까지 반영하면 평균 등급은 <b>${arTxt}</b> 사이일 확률이 90%예요 <small>(위 숫자는 과목마다 가장 유력한 등급으로 낸 평균)</small></p>` : ""}
-      <div class="sum-grid">${tiles}</div>`;
+      <div class="sum-grid">${tiles}</div>
+      ${PAIR[UPCOMING[0]] === current && !exams().includes(UPCOMING[0]) ? `<button class="sum-go" type="button" data-goexam="soon">🎯 이 점수로 학기말 등급 예상해 보기 →</button>` : ""}`;
   }
 
   function badge(d) {
@@ -1032,8 +1050,11 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     if (!current || !(list.includes(current) || soon.includes(current))) current = list[0] || null;
     $("chips").innerHTML = list.map(e =>
       `<button class="chip" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}</button>`).join("")
-      + soon.map(e => `<button class="chip soon" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}<em>준비 중</em></button>`).join("");
+      + soon.map(e => `<button class="chip soon" type="button" data-exam="${esc(e)}" aria-pressed="${e === current}">${esc(e)}<em class="open">목표 계산기 OPEN</em></button>`).join("");
     const isSoon = soon.includes(current);
+    // 기말 목표 계산기 배너: 계산기 탭이 아니고, 닫지 않았을 때만
+    let promoClosed = false; try { promoClosed = localStorage.getItem("gradecut-promo-closed") === "1"; } catch {}
+    $("promo").hidden = isSoon || promoClosed || !soon.length;
     const base = isSoon ? PAIR[current] : current;     // 준비 중인 기말 탭: 과목 목록은 같은 학기 중간에서
     $("picker").hidden = isSoon && !base;
     if (isSoon && !base) {
@@ -1170,6 +1191,8 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else if (t.id === "saveImg") { if (lastSum) saveImage(); else $("status").textContent = "점수를 하나 이상 넣으면 이미지를 만들 수 있어요."; }
     else if (t.id === "moveBtn") { const box = $("move"); box.hidden = !box.hidden; t.setAttribute("aria-expanded", String(!box.hidden)); $("clearAsk").hidden = true; if (!box.hidden) { $("moveLink").value = moveLink(); $("moveLink").select(); } }
     else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
+    else if (t.dataset.goexam) { current = UPCOMING.find(e => !exams().includes(e)) || current; render(); document.querySelector(".sheet")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    else if (t.id === "promoClose") { try { localStorage.setItem("gradecut-promo-closed", "1"); } catch {} $("promo").hidden = true; }
     else if (t.dataset.semmode) { semMode = t.dataset.semmode; try { localStorage.setItem("gradecut-sem-mode", semMode); } catch {} render(); }
     else if (t.dataset.est) { const id = t.dataset.est; showEst = showEst.includes(id) ? showEst.filter(x => x !== id) : [...showEst, id]; saveEst(); render(); }
     else if (t.id === "clear") { $("clearAsk").hidden = false; $("move").hidden = true; $("moveBtn").setAttribute("aria-expanded", "false"); }
