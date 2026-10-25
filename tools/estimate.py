@@ -829,7 +829,8 @@ def validate():
     """확정 컷을 하나씩 숨기고 나머지 사실로 맞혀 보기."""
     tests = [("2026-2mid-english", k) for k in range(4)] + [("2026-2mid-calc", k) for k in range(3)] + \
             [("2026-2mid-bio", k) for k in range(3)] + [("2026-2mid-hwaeon", 0)] + \
-            [("2026-2mid-chem", k) for k in range(2)] + [("2026-2mid-earth", k) for k in range(2)]
+            [("2026-2mid-chem", k) for k in range(2)] + [("2026-2mid-earth", k) for k in range(2)] + \
+            [("2026-2mid-geometry", k) for k in range(2)]
     if "--only" in sys.argv:
         only = sys.argv[sys.argv.index("--only") + 1].split(",")
         tests = [t for t in tests if t[0] in only]
@@ -838,6 +839,8 @@ def validate():
         spec = json.loads(json.dumps(SPECS[sid]))
         spec["cuts"] = [tuple(c) for c in spec["cuts"]]
         actual = spec["cuts"][k][0]
+        if isinstance(actual, list):                  # '88점대'처럼 범위로만 아는 컷은 가운데 값과 비교
+            actual = (actual[0] + actual[1]) / 2
         gi = min(range(4), key=lambda i: abs(Q[i] - spec["cuts"][k][1]))   # k번째 확정 컷이 몇 등급 컷인지 (지구: [1컷, 4컷])
         spec["cuts"] = [c for i, c in enumerate(spec["cuts"]) if i != k]
         spec["counts"] = [tuple(c) for c in spec.get("counts", [])]
