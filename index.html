@@ -105,11 +105,6 @@ h1 span{color:var(--omr)}
 .cell.me{background:var(--omr-soft);border-color:transparent}
 .cell.me b{color:var(--me)}
 .rkwrap{display:inline-flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;margin-top:3px}
-.conf{display:inline-flex;align-items:center;gap:4px;font-size:.66rem;font-weight:700;padding:1px 7px;border-radius:999px;white-space:nowrap;cursor:help}
-.conf::after{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;order:-1}
-.conf.hi{color:#1e9a55;background:rgba(30,154,85,.13)}
-.conf.mid{color:#c27a0b;background:rgba(194,122,11,.15)}
-.conf.lo{color:#d6453b;background:rgba(214,69,59,.13)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
 .cell.me{flex-wrap:wrap}
 .rk{font-size:.72rem;color:var(--me);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -394,7 +389,6 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   <footer class="foot">
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
     <p class="legend">과목 정확도 점수(0~100)는 얻은 정보로 계산이 얼마나 좁혀졌는지예요. 컷 확정 정도 60점(확정 컷은 만점, 추정 컷은 범위가 넓을수록 깎임) + 석차 범위 40점 <span class="acc">85↑ 매우 높음 · 70↑ 높음 · 50↑ 보통 · 30↑ 낮음 · 그 아래 매우 낮음</span></p>
-    <p class="legend">석차 신뢰도는 90% 범위가 얼마나 좁은지로 정해요 <span class="conf hi">높음</span> 범위 폭이 응시 인원의 6% 이하 <span class="conf mid">중간</span> 12% 이하 <span class="conf lo">낮음</span> 그보다 넓음</p>
     <p id="validation"></p>
     <p class="credit">제작·기획 <b>2612 박준선</b></p>
   </footer>
@@ -673,39 +667,26 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     return `<span class="acc ${a.cls}" tabindex="0" data-tip="${esc(tip)}">정확도 <b>${a.score}</b><em>${a.lv}</em></span>`;
   }
 
-  // 신뢰도 = 90% 범위 폭 ÷ 응시 인원 (아래 기준은 범례와 같음)
-  const CONF_HI = 0.06, CONF_MID = 0.12;
+  // 예상 석차: 숫자와 90% 범위만 (얼마나 확실한지는 과목 정확도 점수·등급 확률이 보여줌), 누르면 계산 설명
   function rankHtml(d) {
     const r = rankOf(d); if (!r) return "";
     const pct = Math.max(0.1, r.frac * 100);
     const pctTxt = pct < 10 ? pct.toFixed(1) : Math.round(pct);
     if (r.sim) {
       const w = (r.hi - r.lo) / r.N;
-      const [lv, cls] = w <= CONF_HI ? ["높음", "hi"] : w <= CONF_MID ? ["중간", "mid"] : ["낮음", "lo"];
       const tip = [
-        `추정 석차 · 신뢰도 ${lv}`,
+        "예상 석차",
         r.lo === r.hi ? `${r.lo}등 확정 (같은 점수인 사람과는 공동 ${r.lo}등)` : `90% 범위: ${r.lo}~${r.hi}등 (10번 중 9번은 이 안)`,
         `범위 폭: 전체 ${r.N}명의 ${Math.round(w * 100)}%`,
-        r.gp ? gradeProbText(r.gp) : "",
         `계산: 사실과 맞는 분포 ${d.rk_models || "여러"}개 × 가상의 반 ${d.rk_sims || 40}개`,
         d.rk_why ? "근거: " + d.rk_why : ""
       ].filter(Boolean).join("\n");
-      return `<span class="rkwrap"><span class="rk">${r.lo === r.hi ? "" : "약 "}${r.rank}등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span><span class="conf ${cls} tr" tabindex="0" data-tip="${esc(tip)}">${lv}</span></span>`;
+      return `<span class="rkwrap" tabindex="0" data-tip="${esc(tip)}"><span class="rk">${r.lo === r.hi ? "" : "약 "}${r.rank}등<small>/${r.N}</small> · 상위 ${pctTxt}%</span><span class="rng">${r.lo === r.hi ? "" : r.lo + "~" + r.hi + "등"}</span></span>`;
     }
-    const m = parse(d.my);
-    let lv = d.rk_conf || (r.est ? "낮음" : "중간");
-    if (d.rk_low_below && m && m.n < d.rk_low_below) lv = "낮음";
-    if (r.below) lv = "낮음";
-    const LV = { "높음": ["hi", "±2~3등"], "중간": ["mid", "±5등 안팎"], "낮음": ["lo", "±10등 이상"] }[lv] || ["mid", "±5등 안팎"];
-    const tip = [
-      `추정 석차 · 신뢰도 ${lv}`,
-      `오차: ${r.N ? LV[1] : "몇 %p"} 정도`,
-      r.model ? "방법: 평균·컷·점수대 인원에 맞춘 분포 모델" : "방법: 컷 사이를 직선으로 이음",
-      d.rk_why ? "근거: " + d.rk_why : ""
-    ].filter(Boolean).join("\n");
+    const tip = ["예상 석차 · 대략", r.model ? "방법: 평균·컷·점수대 인원에 맞춘 분포 모델" : "방법: 컷 사이를 직선으로 이음 (정보가 적어 오차가 커요)", d.rk_why ? "근거: " + d.rk_why : ""].filter(Boolean).join("\n");
     const txt = r.below ? `상위 ${Math.round(r.frac * 100)}% 밖`
       : r.rank ? `약 ${r.rank}등/${r.N} · 상위 ${pctTxt}%` : `상위 약 ${pctTxt}%`;
-    return `<span class="rkwrap"><span class="rk">${txt}</span><span class="conf ${LV[0]} tr" tabindex="0" data-tip="${esc(tip)}">${lv}</span></span>`;
+    return `<span class="rkwrap" tabindex="0" data-tip="${esc(tip)}"><span class="rk">${txt}</span></span>`;
   }
 
   const num = n => String(Math.round(n * 10) / 10);
