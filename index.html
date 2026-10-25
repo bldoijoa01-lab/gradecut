@@ -214,7 +214,14 @@ h1 span{color:var(--omr)}
 .tag.f{background:rgba(47,111,214,.12);color:var(--me)}
 .news-f{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:.8rem}
 .news-f a{color:var(--me);text-decoration:none;font-weight:600}
-.news-f a.report{color:#fff;background:var(--omr);padding:4px 12px;border-radius:999px}
+.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:14px 16px;border-radius:12px;background:var(--omr-soft);border:1px solid transparent}
+.cta div{flex:1 1 260px;min-width:0}
+.cta b{font-size:.95rem;color:var(--omr)}
+.cta p{margin:2px 0 0;font-size:.82rem;color:var(--ink);word-break:keep-all}
+.cta .btn{text-decoration:none;white-space:nowrap}
+.cta .btn.off{background:var(--rule);color:var(--muted);cursor:default}
+.ask{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
+.ask a{color:var(--omr);font-weight:700}
 .note{grid-column:1/-1;font-size:.8rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
 .empty{padding:28px 16px;color:var(--muted);text-align:center;font-size:.9rem}
 form{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -276,6 +283,8 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
   </header>
 
+  <section class="cta" id="cta" aria-label="정보 제보"></section>
+
   <section class="news" id="news" aria-label="최근 업데이트" hidden></section>
 
   <div class="chips" id="chips" role="group" aria-label="시험 선택"></div>
@@ -302,7 +311,19 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 (() => {
   const $ = id => document.getElementById(id);
   const LKEY = "gradecut-my-scores";
-  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false;
+  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false, reportUrl = "";
+  // 정보 제보: updates.json의 report_url (비어 있으면 '준비 중')
+  function renderCta() {
+    $("cta").innerHTML = `<div><b>등급컷 제보 받아요</b><p>알고 있는 컷·평균·점수대 인원(예: 90점 이상 5명)이 있으면 알려주세요. 하나만 더 알아도 추정 범위가 확 좁아져요. 이름은 받지 않아요.</p></div>`
+      + (reportUrl ? `<a class="btn" href="${esc(reportUrl)}" target="_blank" rel="noopener">정보 제보하기</a>` : `<span class="btn off" aria-disabled="true">제보 폼 준비 중</span>`);
+  }
+  // 과목 행: 아직 확정 안 된 컷이 있으면 '이 과목 n컷 알면 제보하기' (제보 주소가 있을 때만)
+  function askHtml(d) {
+    if (!reportUrl) return "";
+    const miss = [0, 1, 2, 3].filter(i => { const v = String((d.c || [])[i] || ""); return !v.trim() || v.includes("?"); }).map(i => i + 1);
+    if (!miss.length) return "";
+    return `<p class="ask">${miss.length === 4 ? "이 과목 등급컷" : `이 과목 ${miss.join("·")}컷`}${d.avg ? "" : "이나 평균"}을 알면 <a href="${esc(reportUrl)}" target="_blank" rel="noopener">제보하기</a></p>`;
+  }
   const SKEY = "gradecut-my-electives";
   // 정보가 적은 과목(weak)은 추정 컷·석차·분포를 기본으로 숨기고, '추정 컷 보기'를 누른 과목만 보여줌
   const EKEY = "gradecut-show-est";
@@ -864,6 +885,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       return `<div class="row">
         <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
         <div class="acts">${d.weak ? `<button class="icon" type="button" data-est="${esc(d.id)}" aria-pressed="${!d.hiddenEst}">${d.hiddenEst ? "추정 컷 보기" : "추정 숨기기"}</button>` : ""}</div>
+        ${askHtml(d)}
         ${d.weak ? `<p class="weaknote">${d.hiddenEst ? "정보가 적어서 2~4컷 추정·석차·분포는 숨겨 뒀어요. '추정 컷 보기'를 누르면 나오지만 범위가 아주 넓어요." : "정보가 적은 과목이라 추정 컷과 석차의 범위가 아주 넓어요. 참고만 하세요."}</p>` : ""}
         <div class="cuts">${cells}${me}</div>
         <div class="strip" aria-hidden="true"><div class="base"></div>
@@ -944,7 +966,9 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 
   // 최근 업데이트: updates.json의 최신 3개. 지난번 방문 이후 새로 생긴 건 NEW (처음 방문이면 표시 안 함)
   const LSEEN = "gradecut-last-seen";
+  renderCta();
   fetch("updates.json", { cache: "no-store" }).then(r => r.json()).then(u => {
+    if (u.report_url) { reportUrl = u.report_url; renderCta(); if (docs.length) render(); }
     const items = (u.items || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
     if (!items.length) return;
     let seen = null; try { seen = localStorage.getItem(LSEEN); } catch {}
@@ -952,7 +976,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     const fresh = items.filter(isNew).length;
     $("news").innerHTML = `<div class="news-h"><b>최근 업데이트</b>${fresh ? `<span class="new">새 소식 ${fresh}개</span>` : ""}</div>
       <ul>${items.slice(0, 3).map(it => `<li><time>${esc(fmt(it.at, true))}</time><span class="tag ${it.kind === "data" ? "d" : "f"}">${it.kind === "data" ? "등급컷" : "기능"}</span><span class="t">${esc(it.title)}${isNew(it) ? `<em>NEW</em>` : ""}</span></li>`).join("")}</ul>
-      <div class="news-f"><a href="updates.html">업데이트 내역 전체 보기 →</a>${u.report_url ? `<a class="report" href="${esc(u.report_url)}" target="_blank" rel="noopener">정보 제보하기</a>` : ""}</div>`;
+      <div class="news-f"><a href="updates.html">업데이트 내역 전체 보기 →</a></div>`;
     $("news").hidden = false;
     try { localStorage.setItem(LSEEN, items[0].at); } catch {}
   }).catch(() => {});
