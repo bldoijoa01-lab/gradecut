@@ -64,6 +64,22 @@ h1 span{color:var(--omr)}
 .credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
 .credit b{color:var(--ink);font-weight:700}
 .empty{color:var(--muted);text-align:center;padding:24px 0;font-size:.9rem}
+
+/* 메인과 같은 디자인 레이어 */
+:root{--violet:#8a4fd1;--shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px rgba(16,24,40,.06)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--violet:#b48cff;--shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(0,0,0,.35)}}
+:root[data-theme="dark"]{--violet:#b48cff;--shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(0,0,0,.35)}
+body{background:radial-gradient(900px 420px at -10% -8%,color-mix(in srgb,var(--omr) 16%,transparent),transparent 65%),radial-gradient(800px 420px at 110% -4%,color-mix(in srgb,var(--violet) 14%,transparent),transparent 65%),var(--bg);background-repeat:no-repeat}
+h1 span{background:linear-gradient(90deg,var(--omr),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.day,.report{border-radius:18px;box-shadow:var(--shadow)}
+.report a{background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 70%,var(--violet)))}
+.chip[aria-pressed="true"]{background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)));border-color:transparent}
+@media (prefers-reduced-motion:no-preference){
+  .day{animation:rise .55s cubic-bezier(.2,.7,.2,1) both}
+  .day:nth-of-type(2){animation-delay:.07s}.day:nth-of-type(3){animation-delay:.14s}.day:nth-of-type(n+4){animation-delay:.21s}
+  button:active{transform:scale(.96)}
+}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
 </style>
 <script>
 try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
