@@ -236,6 +236,13 @@ h1 span{color:var(--omr)}
 .scope{margin:2px 0 0;font-size:.78rem;color:var(--muted);padding:6px 10px;border-left:3px solid var(--omr);background:var(--surface);border-radius:0 6px 6px 0;word-break:keep-all}
 .credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
 .credit b{color:var(--ink);font-weight:700}
+.acc{display:inline-flex;align-items:baseline;gap:3px;font-size:.68rem;font-weight:700;padding:1px 8px;border-radius:999px;white-space:nowrap;cursor:help;vertical-align:1px;color:#7a5200;background:#ffe27a;border:1px solid #f2c94c}
+.acc b{font-family:var(--mono);font-size:1.05em}
+.acc em{font-style:normal;font-weight:500;opacity:.85}
+.acc.a0{color:var(--muted);background:var(--bg);border-color:var(--rule)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .acc:not(.a0){color:#ffe27a;background:rgba(255,214,90,.14);border-color:rgba(255,214,90,.45)}}
+:root[data-theme="dark"] .acc:not(.a0){color:#ffe27a;background:rgba(255,214,90,.14);border-color:rgba(255,214,90,.45)}
+.legend .acc{cursor:default}
 .toprow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
 .toprow h1{white-space:nowrap}
 .themes{display:inline-flex;flex:none;padding:3px;gap:2px;border-radius:999px;background:var(--surface);border:1.5px solid var(--omr);box-shadow:0 2px 8px rgba(212,61,99,.15)}
@@ -311,7 +318,7 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 [data-tip]{position:relative;cursor:help}
 [data-tip]:focus{outline:none}
 [data-tip]:focus-visible{outline:2px solid var(--me);outline-offset:2px}
-[data-tip]:hover::before,[data-tip]:focus::before{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:0;width:max-content;max-width:220px;white-space:pre-line;background:var(--ink);color:var(--bg);font:500 .72rem/1.45 var(--sans);letter-spacing:0;text-align:left;padding:7px 10px;border-radius:7px;z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
+[data-tip]:hover::before,[data-tip]:focus::before{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:var(--tipx,0px);width:max-content;max-width:220px;white-space:pre-line;background:var(--ink);color:var(--bg);font:500 .72rem/1.45 var(--sans);letter-spacing:0;text-align:left;padding:7px 10px;border-radius:7px;z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18);pointer-events:none}
 [data-tip].tr:hover::before,[data-tip].tr:focus::before{left:auto;right:0}
 .cell b.unsure{text-decoration:underline dotted var(--omr);text-underline-offset:3px}
 .sheet{overflow:visible}
@@ -363,6 +370,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 
   <footer class="foot">
     <p><span id="updated"></span> · 컷 옆 ?는 추정치, ↑는 '이상'이라는 뜻이에요.</p>
+    <p class="legend">과목 정확도 점수(0~100)는 얻은 정보로 계산이 얼마나 좁혀졌는지예요. 컷 확정 정도 60점(확정 컷은 만점, 추정 컷은 범위가 넓을수록 깎임) + 석차 범위 40점 <span class="acc">85↑ 매우 높음 · 70↑ 높음 · 50↑ 보통 · 30↑ 낮음 · 그 아래 매우 낮음</span></p>
     <p class="legend">석차 신뢰도는 90% 범위가 얼마나 좁은지로 정해요 <span class="conf hi">높음</span> 범위 폭이 응시 인원의 6% 이하 <span class="conf mid">중간</span> 12% 이하 <span class="conf lo">낮음</span> 그보다 넓음</p>
     <p id="validation"></p>
     <p class="credit">제작·기획 <b>2612 박준선</b></p>
@@ -565,6 +573,36 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     }
     return { frac, N, est, rank: N ? Math.max(1, Math.round(frac * N)) : null };
   }
+  // 과목별 정확도 점수(0~100): 얻은 정보로 계산 결과가 얼마나 좁혀졌는지
+  //  컷 점수(60%): 4컷 각 25점 — 확정 25, 추정은 25×e^(−90%범위폭/25), 모르면 0 ('88.x'처럼 대략 확정은 폭 1점으로)
+  //  석차 점수(40%): 40×e^(−석차 90%범위폭 중앙값(응시 인원 대비)/0.15)
+  const ACC_LV = [[85, "매우 높음", "a5"], [70, "높음", "a4"], [50, "보통", "a3"], [30, "낮음", "a2"], [0, "매우 낮음", "a1"]];
+  function accOf(d0) {
+    const d = docs.find(x => x.id === d0.id) || d0;          // 추정 숨김 보기여도 원래 정보로 계산
+    const c = d.c || [], cr = d.cut_ranges || {}, rw = d.rk_widths;
+    const cuts = [0, 1, 2, 3].map(i => {
+      const v = String(c[i] || "");
+      if (!v.trim()) return { i, kind: "none", pts: 0 };
+      if (v.includes("?")) { const r = cr[i + 1]; const w = r ? r[2] - r[0] : 40; return { i, kind: "est", w, pts: 25 * Math.exp(-w / 25) }; }
+      const w = /x/i.test(v) ? 1 : 0; return { i, kind: "sure", w, pts: 25 * Math.exp(-w / 25) };
+    });
+    if (!cuts.some(x => x.kind !== "none") || !Array.isArray(rw)) return null;
+    const cutPts = cuts.reduce((a, x) => a + x.pts, 0), rankPts = 40 * Math.exp(-rw[1] / 0.15);
+    const score = Math.round(0.6 * cutPts + rankPts);
+    const [, lv, cls] = ACC_LV.find(([t]) => score >= t);
+    return { score, lv, cls, cuts, cutPts, rankPts, rw: rw[1] };
+  }
+  function accHtml(d) {
+    const a = accOf(d);
+    if (!a) return `<span class="acc a0" tabindex="0" data-tip="정확도: 아직 정보가 없어서 매길 수 없어요.">정확도 —</span>`;
+    const sure = a.cuts.filter(x => x.kind === "sure").length, est = a.cuts.filter(x => x.kind === "est");
+    const tip = [`정확도 ${a.score}점 · ${a.lv}`,
+      `컷: 확정 ${sure}개${est.length ? `, 추정 ${est.length}개(90% 범위 ${est.map(x => `${x.i + 1}컷 ±${Math.round(x.w / 2)}점`).join(", ")})` : ""}${a.cuts.some(x => x.kind === "none") ? ", 모름 " + a.cuts.filter(x => x.kind === "none").length + "개" : ""} → ${Math.round(0.6 * a.cutPts)}/60점`,
+      `석차: 90% 범위가 보통 응시 인원의 ${Math.round(a.rw * 100)}% → ${Math.round(a.rankPts)}/40점`,
+      "정보가 더 들어오면 올라가요."].join("\n");
+    return `<span class="acc ${a.cls}" tabindex="0" data-tip="${esc(tip)}">정확도 <b>${a.score}</b><em>${a.lv}</em></span>`;
+  }
+
   // 신뢰도 = 90% 범위 폭 ÷ 응시 인원 (아래 기준은 범례와 같음)
   const CONF_HI = 0.06, CONF_MID = 0.12;
   function rankHtml(d) {
@@ -991,7 +1029,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       }).join("");
       const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
       return `<div class="row">
-        <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}${isNewDoc(d) ? `<em class="newb" title="지난번 방문 이후 컷이 바뀌었어요">NEW</em>` : ""}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""}</small></div></div>
+        <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}${isNewDoc(d) ? `<em class="newb" title="지난번 방문 이후 컷이 바뀌었어요">NEW</em>` : ""}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""} ${accHtml(d)}</small></div></div>
         <div class="acts">${d.weak ? `<button class="icon" type="button" data-est="${esc(d.id)}" aria-pressed="${!d.hiddenEst}">${d.hiddenEst ? "추정 컷 보기" : "추정 숨기기"}</button>` : ""}</div>
         ${askHtml(d)}
         ${d.weak ? `<p class="weaknote">${d.hiddenEst ? "정보가 적어서 2~4컷 추정·석차·분포는 숨겨 뒀어요. '추정 컷 보기'를 누르면 나오지만 범위가 아주 넓어요." : "정보가 적은 과목이라 추정 컷과 석차의 범위가 아주 넓어요. 참고만 하세요."}</p>` : ""}
@@ -1019,6 +1057,17 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       : ok ? "내 점수를 이 브라우저에 저장했어요." : "이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라져요.";
   }
 
+  // 말풍선(data-tip): 화면 오른쪽 절반에 있으면 왼쪽으로 펼쳐서 화면 밖으로 안 나가게
+  const tipSide = e => {
+    const t = e.target.closest?.("[data-tip]"); if (!t) return;
+    const r = t.getBoundingClientRect(), W = 244, m = 12;               // 말풍선 최대 폭(220+여백)
+    const flip = r.left + W > innerWidth - m && r.right - W >= m;
+    t.classList.toggle("tr", flip);
+    // 양쪽 다 모자라면 화면 안에 들어올 만큼 왼쪽으로 밀기
+    t.style.setProperty("--tipx", flip ? "0px" : Math.min(0, innerWidth - m - (r.left + W)) + "px");
+  };
+  document.addEventListener("mouseover", tipSide);
+  document.addEventListener("focusin", tipSide);
   // 분포 막대: 누르거나(휴대폰) 마우스를 올리면 아래 줄에 인원 표시
   const showBar = bar => {
     const chart = bar.closest(".chart"); if (!chart) return;
