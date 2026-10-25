@@ -28,7 +28,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   display:flex;flex-direction:column;gap:18px}
 a{color:var(--me)}
-.back{font-size:.84rem;font-weight:600;text-decoration:none;align-self:flex-start}
+.back{font-size:.84rem;font-weight:600;text-decoration:none}
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.theme{font:inherit;font-size:.78rem;background:none;border:1px solid var(--rule);color:var(--muted);padding:2px 8px;border-radius:6px;cursor:pointer}
 h1{margin:0;font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
 h1 span{color:var(--omr)}
 .sub{color:var(--muted);font-size:.86rem;margin:4px 0 0}
@@ -51,10 +53,13 @@ h1 span{color:var(--omr)}
 .report a{color:#fff;background:var(--omr);padding:6px 14px;border-radius:999px;text-decoration:none;font-weight:700}
 .empty{color:var(--muted);text-align:center;padding:24px 0;font-size:.9rem}
 </style>
+<script>
+try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+</script>
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="./">← 등급컷 아카이브로</a>
+  <div class="toprow"><a class="back" href="./">← 등급컷 아카이브로</a><button class="theme" type="button" id="theme" aria-label="화면 테마 바꾸기">화면: 자동</button></div>
   <header>
     <h1>업데이트 <span>내역</span></h1>
     <p class="sub">등급컷이 새로 들어오거나 기능이 바뀔 때마다 여기에 기록해요. 시각은 한국 시간이에요.</p>
@@ -89,6 +94,16 @@ h1 span{color:var(--omr)}
     $("list").innerHTML = days.map(d => `<section class="day"><h2>${esc(d.label)}</h2><ol>${d.rows.map(it =>
       `<li><time>${esc(it.time)}</time><span class="t"><span class="tag ${it.kind === "data" ? "d" : "f"}">${it.kind === "data" ? "등급컷" : "기능"}</span>${esc(it.title)}</span>${it.detail ? `<p class="d">${esc(it.detail)}</p>` : ""}</li>`).join("")}</ol></section>`).join("");
   }
+  // 화면 테마 (메인과 같은 설정을 씀)
+  let theme = (() => { try { const t = localStorage.getItem("gradecut-theme"); return t === "light" || t === "dark" ? t : "auto"; } catch { return "auto"; } })();
+  const setTheme = t => {
+    theme = t;
+    if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+    try { if (t === "auto") localStorage.removeItem("gradecut-theme"); else localStorage.setItem("gradecut-theme", t); } catch {}
+    $("theme").textContent = "화면: " + { auto: "자동", light: "라이트", dark: "다크" }[t];
+  };
+  setTheme(theme);
+  $("theme").addEventListener("click", () => { const o = ["auto", "light", "dark"]; setTheme(o[(o.indexOf(theme) + 1) % 3]); });
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-k]"); if (!b) return;
     kind = b.dataset.k;
