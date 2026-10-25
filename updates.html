@@ -24,17 +24,21 @@
 <style>
 /* index.html과 같은 색·글꼴. 날짜별로 묶은 업데이트 목록 */
 :root{
-  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2230; --muted:#667085; --rule:#dfe3ea;
-  --omr:#d43d63; --omr-soft:#fbe7ec; --me:#2f6fd6;
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#1b2230; --muted:#5f687c; --rule:#dfe3ea;
+  --omr:#c42f57; --omr-soft:#fbe7ec; --me:#2a64c8;
+  /* 글씨 색 대비 4.5:1 이상 (WCAG AA): 상태색(확정·주의·경고)과 진한 색 바탕 위 글씨(on-fill) */
+  --ok:#157a42; --warn:#925a00; --bad:#b8322a; --on-fill:#fff;
   --sans:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --bg:#12151b; --surface:#1a1f27; --ink:#e6e9ef; --muted:#9aa3b2; --rule:#2c3340;
-  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark}}
+  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark;
+  --ok:#3ccf7e; --warn:#e9a53a; --bad:#ff6b5e; --on-fill:#1d0b12}}
 :root[data-theme="dark"]{
   --bg:#12151b; --surface:#1a1f27; --ink:#e6e9ef; --muted:#9aa3b2; --rule:#2c3340;
-  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark}
+  --omr:#f06b8b; --omr-soft:#3a1f28; --me:#6fa1ff; color-scheme:dark;
+  --ok:#3ccf7e; --warn:#e9a53a; --bad:#ff6b5e; --on-fill:#1d0b12}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
 .wrap{max-width:760px;margin:0 auto;padding-block:28px 56px;
@@ -48,7 +52,7 @@ a{color:var(--me)}
 .themes button{font:inherit;font-size:.76rem;font-weight:700;display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border:0;border-radius:999px;background:none;color:var(--omr);cursor:pointer;white-space:nowrap}
 .themes button svg{width:14px;height:14px}
 .themes button{position:relative;z-index:1;justify-content:center}
-.themes button[aria-pressed="true"]{background:none;color:#fff}
+.themes button[aria-pressed="true"]{background:none;color:var(--on-fill)}
 .themes .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc((100% - 6px) / 3);border-radius:999px;background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)));box-shadow:0 3px 10px color-mix(in srgb,var(--omr) 35%,transparent)}
 @media (prefers-reduced-motion:no-preference){.themes .thumb.ready{transition:transform .45s cubic-bezier(.3,1.25,.5,1)}.themes button{transition:color .3s ease}}
 .themes button:focus-visible{outline:2px solid var(--me);outline-offset:2px}
@@ -62,7 +66,7 @@ h1 span{color:var(--omr)}
 .sub{color:var(--muted);font-size:.86rem;margin:4px 0 0}
 .filters{display:flex;flex-wrap:wrap;gap:8px}
 .chip{font:inherit;font-size:.84rem;padding:6px 12px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
-.chip[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:#fff}
+.chip[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:var(--on-fill)}
 .chip:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 .day{background:var(--surface);border:1px solid var(--rule);border-radius:12px;overflow:hidden}
 .day h2{margin:0;font-size:.9rem;padding:10px 16px;border-bottom:2px solid var(--omr);font-variant-numeric:tabular-nums}
@@ -76,7 +80,7 @@ h1 span{color:var(--omr)}
 .tag.d{background:var(--omr-soft);color:var(--omr)}
 .tag.f{background:rgba(47,111,214,.12);color:var(--me)}
 .report{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;font-size:.86rem}
-.report a{color:#fff;background:var(--omr);padding:6px 14px;border-radius:999px;text-decoration:none;font-weight:700}
+.report a{color:var(--on-fill);background:var(--omr);padding:6px 14px;border-radius:999px;text-decoration:none;font-weight:700}
 .credit{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--rule);text-align:center;font-size:.8rem;color:var(--muted)}
 .credit b{color:var(--ink);font-weight:700}
 .empty{color:var(--muted);text-align:center;padding:24px 0;font-size:.9rem}
@@ -102,7 +106,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 </script>
 </head>
 <body>
-<div class="wrap">
+<main class="wrap">
   <div class="toprow"><a class="back" href="./">← 오송고 등급컷 아카이브로</a><div class="themes" id="theme" role="group" aria-label="화면 테마"><span class="thumb" aria-hidden="true"></span><button type="button" data-theme-set="auto" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor"/></svg>자동</button><button type="button" data-theme-set="light" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>라이트</button><button type="button" data-theme-set="dark" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>다크</button></div></div>
   <header>
     <h1>업데이트 <span>내역</span></h1>
@@ -116,7 +120,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   <section class="report" id="report" hidden><span>알고 있는 컷·평균·점수대 인원이 있으면 알려주세요. 이름은 받지 않아요.</span><a id="reportLink" href="#" target="_blank" rel="noopener">정보 제보하기</a></section>
   <div id="list"><p class="empty">불러오는 중이에요.</p></div>
   <p class="credit">제작·기획 <b>2612 박준선</b></p>
-</div>
+</main>
 <script>
 (() => {
   const $ = id => document.getElementById(id);

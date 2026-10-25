@@ -134,6 +134,22 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await q.context().close();
   }
 
+  // 9. 글씨 색 대비 4.5:1 이상 (WCAG AA) — 색 토큰 조합, 밝은·어두운 화면
+  for (const scheme of ['light', 'dark']) {
+    const p = await open(b, { scheme });
+    const pairs = [['--on-fill', '--omr'], ['--on-fill', '--me'], ['--omr', '--omr-soft'], ['--muted', '--omr-soft'], ['--omr', '--bg'],
+      ['--me', '--surface'], ['--muted', '--surface'], ['--ok', '--surface'], ['--warn', '--surface'], ['--bad', '--surface']];
+    const worst = await p.evaluate(pairs => {
+      const rgb = v => { const e = document.createElement('i'); e.style.color = `var(${v})`; document.body.append(e);
+        const c = getComputedStyle(e).color.match(/[\d.]+/g).slice(0, 3).map(Number); e.remove(); return c; };
+      const L = c => { const [r, g, b] = c.map(x => { x /= 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+      const cr = (a, b) => { const [x, y] = [L(rgb(a)), L(rgb(b))].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+      return pairs.map(([f, g]) => [f + ' / ' + g, cr(f, g)]).sort((a, b) => a[1] - b[1])[0];
+    }, pairs);
+    check(`${scheme === 'light' ? '밝은' : '어두운'} 화면: 글씨 색 대비 4.5 이상`, worst[1] >= 4.5, `가장 낮은 ${worst[0]} = ${worst[1].toFixed(2)}`);
+    await p.context().close();
+  }
+
   await b.close();
   const bad = results.filter(r => !r.ok);
   console.log(`\n${results.length - bad.length}/${results.length} 통과`);
