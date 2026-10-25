@@ -355,6 +355,53 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
 .sheet{overflow:visible}
 .alias{font-weight:400;color:var(--muted);font-size:.85rem;margin-left:4px}
 @media (prefers-reduced-motion:no-preference){.chip,.icon{transition:background .15s,border-color .15s}}
+
+/* ===== 디자인 레이어: 배경 빛, 떠 있는 카드, 그라데이션 포인트 ===== */
+:root{--violet:#8a4fd1;--shadow:0 1px 2px rgba(16,24,40,.04),0 6px 18px rgba(16,24,40,.06);--shadow-lg:0 2px 4px rgba(16,24,40,.05),0 14px 32px rgba(16,24,40,.10)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--violet:#b48cff;--shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(0,0,0,.35);--shadow-lg:0 2px 6px rgba(0,0,0,.4),0 16px 36px rgba(0,0,0,.45)}}
+:root[data-theme="dark"]{--violet:#b48cff;--shadow:0 1px 2px rgba(0,0,0,.35),0 8px 22px rgba(0,0,0,.35);--shadow-lg:0 2px 6px rgba(0,0,0,.4),0 16px 36px rgba(0,0,0,.45)}
+body{background:radial-gradient(900px 420px at -10% -8%,color-mix(in srgb,var(--omr) 16%,transparent),transparent 65%),radial-gradient(800px 420px at 110% -4%,color-mix(in srgb,var(--violet) 14%,transparent),transparent 65%),var(--bg);background-repeat:no-repeat}
+h1 span{background:linear-gradient(90deg,var(--omr),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.summary,.picker,.mytools,.news{border-radius:16px;box-shadow:var(--shadow)}
+.sheet{background:none;border:0;border-radius:0;box-shadow:none}
+.sheet-head{background:var(--surface);border:1px solid var(--rule);border-left:4px solid var(--omr);border-radius:12px;margin-bottom:14px;box-shadow:var(--shadow)}
+#rows{display:flex;flex-direction:column;gap:14px}
+.row,.row:last-child{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow);padding:16px}
+#rows>.soonhead,#rows>.empty,#rows>.soonbox{background:var(--surface);border:1px solid var(--rule);border-radius:18px;box-shadow:var(--shadow)}
+.gb{border-radius:16px}
+.gb.g1:not(.part){background:linear-gradient(135deg,var(--omr),var(--violet));border-color:transparent;box-shadow:0 6px 16px color-mix(in srgb,var(--omr) 35%,transparent)}
+.sum-avg b .cnt{font-style:normal;background:linear-gradient(90deg,var(--omr),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.gp-big b{background:linear-gradient(90deg,var(--omr),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+.gprob{background:linear-gradient(135deg,var(--omr-soft),color-mix(in srgb,var(--violet) 10%,var(--surface)))}
+.btn{background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 70%,var(--violet)));box-shadow:0 4px 12px color-mix(in srgb,var(--omr) 30%,transparent)}
+.btn.ghost{background:none;box-shadow:none}
+.chip[aria-pressed="true"]{background:linear-gradient(135deg,var(--omr),color-mix(in srgb,var(--omr) 65%,var(--violet)));border-color:transparent;box-shadow:0 4px 12px color-mix(in srgb,var(--omr) 28%,transparent)}
+.promo{background:linear-gradient(120deg,#d43d63,#8a4fd1,#d43d63);background-size:220% 220%}
+
+/* ===== 모션: 처음 열 때(body.intro)와 값이 바뀔 때(.fresh)만, '동작 줄이기'면 없음 ===== */
+@media (prefers-reduced-motion:no-preference){
+  body.intro header,body.intro .wrap>section,body.intro .wrap>.chips,body.intro .wrap>footer{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+  body.intro .wrap>:nth-child(2){animation-delay:.06s}body.intro .wrap>:nth-child(3){animation-delay:.12s}body.intro .wrap>:nth-child(4){animation-delay:.18s}
+  body.intro .wrap>:nth-child(5){animation-delay:.24s}body.intro .wrap>:nth-child(6){animation-delay:.3s}body.intro .wrap>:nth-child(n+7){animation-delay:.36s}
+  body.intro .row{animation:rise .55s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(.35s + var(--i,0) * 70ms)}
+  body.intro .plot .b i,.row.fresh .plot .b i{animation:grow-y .8s cubic-bezier(.2,.7,.2,1) both;transform-origin:bottom}
+  body.intro .sp-bar i,.row.fresh .sp-bar i{animation:grow-x .7s cubic-bezier(.2,.7,.2,1) both;transform-origin:left}
+  .row.fresh .gb{animation:pop .45s cubic-bezier(.3,1.6,.5,1)}
+  .row.fresh .gprob,.row.fresh .goal{animation:rise .4s cubic-bezier(.2,.7,.2,1) both}
+  .row,.summary,.picker,.mytools,.news,.tile,.tbtn,.chip,.pchip,.btn,.cell{transition:transform .18s ease,box-shadow .18s ease,background-color .2s,border-color .2s}
+  button:active,.tbtn:active,.chip:active,.pchip:active{transform:scale(.96)}
+  .promo{animation:flow 9s ease-in-out infinite}
+  .strip .dot{transition:left .45s cubic-bezier(.2,.7,.2,1)}
+}
+@media (prefers-reduced-motion:no-preference) and (hover:hover){
+  .row:hover,.summary:hover,.news:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+  .tile:hover,.tbtn:hover{transform:translateY(-2px)}
+}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+@keyframes grow-y{from{transform:scaleY(0)}}
+@keyframes grow-x{from{transform:scaleX(0)}}
+@keyframes pop{0%{transform:scale(.82)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes flow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 </style>
 <script>
 // 화면 테마(자동/라이트/다크): 그리기 전에 적용해서 깜빡임 없게
@@ -414,6 +461,9 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
 <script>
 (() => {
   const $ = id => document.getElementById(id);
+  // 처음 열 때만 들어오는 모션 (다 들어오면 해제해서 이후 다시 그릴 때는 안 움직임)
+  document.body.classList.add("intro");
+  setTimeout(() => document.body.classList.remove("intro"), 2400);
   const LKEY = "gradecut-my-scores";
   let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false, reportUrl = "", lastSum = null;
   // 과목별 NEW: 지난 방문 시각보다 나중에 컷이 바뀐 과목 (처음 방문이면 표시 안 함)
@@ -607,8 +657,8 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       tiles: items.map(({ d, g, m, dist }) => ({ name: d.alias || d.subject, g: g ? g.n : null, u: !!g?.u, score: m.raw,
         below: !!g?.below, prob: !g ? "" : g.below ? "이하" : dist && !dist.fixed ? pctTxt(dist.p[g.n - 1]) : "확정" })) };
     return `<div class="sum-head"><div class="sum-avg">${wavg
-      ? `<small>내 평균 등급 · 학점 가중</small><b>${wavg}<span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
-      : `<small>내 평균 등급 · 단순 평균</small><b>${avg}<span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div>
+      ? `<small>내 평균 등급 · 학점 가중</small><b><i class="cnt" data-count="${wavg}" data-dec="2" data-key="avg-${esc(current)}">${wavg}</i><span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
+      : `<small>내 평균 등급 · 단순 평균</small><b><i class="cnt"${avg === "—" ? "" : ` data-count="${avg}" data-dec="2" data-key="avg-${esc(current)}"`}>${avg}</i><span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div>
       ${arTxt ? `<p class="sum-rng">확률까지 반영하면 평균 등급은 <b>${arTxt}</b> 사이일 확률이 90%예요 <small>(위 숫자는 과목마다 가장 유력한 등급으로 낸 평균)</small></p>` : ""}
       <div class="sum-grid">${tiles}</div>
       ${PAIR[UPCOMING[0]] === current && !exams().includes(UPCOMING[0]) ? `<button class="sum-go" type="button" data-goexam="soon">🎯 이 점수로 학기말 등급 예상해 보기 →</button>` : ""}`;
@@ -776,7 +826,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const s = parseFloat(d.n) ? simAt(d, m.n) : null;
     if (!s || !s.gp) return "";
     const gp = s.gp.map(v => v / 100), top = topGrade(gp);
-    return `<div class="gprob"><div class="gp-big"><b>${pctTxt(gp[top])}</b><span>${top + 1}등급일 확률</span></div>
+    return `<div class="gprob"><div class="gp-big"><b${cntAttr(gp[top], "gp-" + d.id)}>${pctTxt(gp[top])}</b><span>${top + 1}등급일 확률</span></div>
       <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
       <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}${k === top ? " top" : ""}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p></div>`;
   }
@@ -960,9 +1010,9 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     }
     return { gp, q, lo: Math.min(...fs), hi: Math.max(...fs), N: M.N };
   }
-  const gpBlock = gp => {
+  const gpBlock = (gp, key) => {
     const top = topGrade(gp);
-    return `<div class="sp-big"><b>${pctTxt(gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(gp[top])})` : ""}</span></div>
+    return `<div class="sp-big"><b${cntAttr(gp[0], "semp-" + (key || ""))}>${pctTxt(gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(gp[top])})` : ""}</span></div>
       <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
       <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p>`;
   };
@@ -970,14 +1020,14 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const r = semGpRank(mid, fin, rr, pstr); if (!r) return "";
     const pct = rr / r.N * 100;
     return `<div class="sp"><p class="sp-h">${guessed ? "기말도 중간과 비슷한 " : "기말 "}<b>${rr}등</b>이면 <small>(${r.N}명 중 상위 ${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%)</small></p>
-      ${gpBlock(r.gp)}
+      ${gpBlock(r.gp, mid.id)}
       <p class="rawme">기말 ${rr}등은 점수로 약 <b>${Math.round(r.q)}</b>점 <small>참고용 · 기말 난이도·점수 퍼짐에 따라 ${Math.round(r.lo)}~${Math.round(r.hi)}점</small></p></div>`;
   }
   const pctTxt = p => p >= 0.995 ? "99% 이상" : p > 0 && p < 0.01 ? "1% 미만" : Math.round(p * 100) + "%";
   function probHtml(mid, fin, fx, guessed, pstr) {
     const r = semGp(mid, fin, fx, pstr); if (!r) return "";
     return `<div class="sp"><p class="sp-h">${guessed ? "기말도 중간과 같은 " : "기말 "}<b>${num(fx)}</b>점이면</p>
-      ${gpBlock(r.gp)}
+      ${gpBlock(r.gp, mid.id)}
       <p class="rawme">학기말 원점수 <b>${num(r.raw)}</b>점 <small>참고용 · 중간 ${esc(r.m.raw)}×25% + 기말 ${num(fx)}×25% + 수행 ${num(r.perf)}</small></p></div>`;
   }
   function semHtml(mid, fin, fstr, note = true, pstr = "", slider = false, rstr = "") {
@@ -1042,7 +1092,30 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   // 아직 컷이 없는 다가오는 시험: 칩만 보여주고 '준비 중' 안내 (cuts.json에 과목이 생기면 자동으로 일반 시험이 됨)
   const UPCOMING = ["2026 2학기 기말"];
 
-  function render() {
+  // 그린 뒤: 숫자 카운트, 방금 고친 과목(.fresh) 표시 해제
+  let freshId = null;
+  function render() { renderCore(); animateNumbers(); freshId = null; }
+  const prevNums = {}, runningNums = {};
+  const cntAttr = (p, key) => { const t = pctTxt(p); return /^\d+%$/.test(t) ? ` data-count="${parseInt(t)}" data-suf="%" data-key="${esc(key)}"` : ""; };
+  function animateNumbers(root = document) {
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches, intro = document.body.classList.contains("intro");
+    root.querySelectorAll("[data-count]").forEach(el => {
+      const key = el.dataset.key, to = +el.dataset.count, dec = +(el.dataset.dec || 0), suf = el.dataset.suf || "";
+      if (!isFinite(to)) return;
+      // 같은 숫자가 움직이는 중에 화면이 다시 그려지면 이어서 움직임 (처음 열 때 두 번 그려짐)
+      const run = runningNums[key], now0 = performance.now();
+      let from, t0, dur;
+      if (run && run.to === to && now0 < run.t0 + run.dur) ({ from, t0, dur } = run);
+      else { from = key in prevNums ? prevNums[key] : intro ? 0 : to; t0 = now0; dur = intro ? 900 : 420; }
+      prevNums[key] = to;
+      if (reduce || from === to) return;
+      runningNums[key] = { from, to, t0, dur };
+      const step = now => { const k = Math.min(1, Math.max(0, (now - t0) / dur)), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = (from + (to - from) * e).toFixed(dec) + suf; if (k < 1 && el.isConnected) requestAnimationFrame(step); else el.textContent = to.toFixed(dec) + suf; };
+      step(now0); requestAnimationFrame(step);
+    });
+  }
+  function renderCore() {
     if (document.activeElement?.classList.contains("myin")) { renderWaiting = true; return; }
     renderWaiting = false;
     const list = exams();
@@ -1086,14 +1159,14 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           <div class="seg" role="group" aria-label="기말 목표 정하는 방법"><button type="button" data-semmode="rank" aria-pressed="${semMode === "rank"}">목표 등수로</button><button type="button" data-semmode="score" aria-pressed="${semMode === "score"}">목표 점수로</button></div>
           <p class="sem-f">${semMode === "rank" ? "등수로 정하면 기말이 쉽든 어렵든 같은 자리라서 확률이 더 정확해요." : "점수로 정하면 기말이 쉬운지 어려운지에 따라 같은 점수도 자리가 달라져서, 그만큼 확률이 덜 확실해요."}</p>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
-        + rows.map(d => {
+        + rows.map((d, ri) => {
           const midIn = `<label>중간 점수${numIn(`data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력"`, rawOf(d.id), 0, 100, "점")}</label>`;
           const fk = semMode === "rank" ? semrKey(d) : semKey(d);
           const N = parseInt(d.n) || 999;
           const finIn = semMode === "rank"
             ? `<label>기말 목표 등수${numIn(`data-score="${esc(fk)}" inputmode="numeric" placeholder="예: 20"`, rawOf(fk), 1, N, "등")}</label>`
             : `<label>기말 목표 점수${numIn(`data-score="${esc(fk)}" inputmode="decimal" placeholder="입력"`, rawOf(fk), 0, 100, "점")}</label>`;
-          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, okVal(rawOf(semKey(d)), 0, 100), false, rawOf(perfKey(d)), true, okVal(rawOf(semrKey(d)), 1, N))}</div>`;
+          return `<div class="row${d.id === freshId ? " fresh" : ""}" style="--i:${ri}"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, okVal(rawOf(semKey(d)), 0, 100), false, rawOf(perfKey(d)), true, okVal(rawOf(semrKey(d)), 1, N))}</div>`;
         }).join("");
       return;
     }
@@ -1102,7 +1175,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     $("summary").hidden = !sum;
     $("examTitle").textContent = current;
     $("count").textContent = rows.length + "과목";
-    $("rows").innerHTML = rows.map(d => {
+    $("rows").innerHTML = rows.map((d, ri) => {
       const cuts = d.c || [];
       const noCut = !cuts.some(v => String(v || "").trim());
       const cells = noCut ? `<div class="nocut">아직 등급컷이 없어요</div>` : [0, 1, 2, 3].map(i => {
@@ -1124,7 +1197,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         return `<div class="tick ${p.unsure ? "unsure" : ""}" style="left:${cl(p.n)}%"><span>${i + 1}</span></div>`;
       }).join("");
       const dot = myP ? `<div class="dot" style="left:${Math.max(0, Math.min(100, myP.n))}%" title="내 점수"></div>` : "";
-      return `<div class="row">
+      return `<div class="row${d.id === freshId ? " fresh" : ""}" style="--i:${ri}">
         <div class="subj">${badge(d)}<div class="sname"><span>${nameOf(d)}${isNewDoc(d) ? `<em class="newb" title="지난번 방문 이후 컷이 바뀌었어요">NEW</em>` : ""}</span><small>${d.cr ? d.cr + "학점" : ""}${d.avg ? ` · 평균 ${esc(d.avg)}` : ""} ${accHtml(d)}</small></div></div>
         <div class="acts">${d.weak ? `<button class="icon" type="button" data-est="${esc(d.id)}" aria-pressed="${!d.hiddenEst}">${d.hiddenEst ? "추정 컷 보기" : "추정 숨기기"}</button>` : ""}</div>
         ${askHtml(d)}
@@ -1145,6 +1218,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   }
 
   function saveScore(id, val) {
+    const sid = id.replace(/^(sem|semr|perf)-/, ""); if (docs.some(x => x.id === sid)) freshId = sid;
     const prev = scores[id] || {};
     const body = prev.g && prev.my === val ? { my: val, g: prev.g } : { my: val };
     if (!val) delete scores[id]; else scores[id] = body;
@@ -1216,6 +1290,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       const box = document.querySelector(`[data-score="${key}"]`); if (box) box.value = v;
       const sp = e.target.closest(".sem")?.querySelector(".sp"), m = { ...mid, my: myScore(mid.id) }, ps = rawOf(perfKey(mid));
       if (sp) sp.outerHTML = rank ? probRankHtml(m, null, parseInt(v), false, ps) : probHtml(m, null, parseFloat(v), false, ps);
+      const box2 = e.target.closest(".sem"); if (box2) animateNumbers(box2);
     }
   });
   document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
