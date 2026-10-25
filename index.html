@@ -155,10 +155,6 @@ h1 span{color:var(--omr)}
 .sem{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:10px}
 .sem-h{font-size:.8rem;font-weight:700}
 .sem-h small{font-weight:400;color:var(--muted);margin-left:6px}
-.sem-res{display:flex;align-items:center;gap:12px}
-.sem-res .gb{width:52px;height:52px}
-.sem-res p{margin:0;font-size:.88rem}
-.sem-res p small{display:block;color:var(--muted);font-size:.76rem}
 .need{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
 .need span{display:block;font-size:.78rem;padding:6px 10px;border-radius:8px;border:1px solid var(--rule);font-variant-numeric:tabular-nums}
 .need span em{display:block;font-style:normal;font-size:.68rem;font-weight:700;color:var(--muted)}
@@ -170,6 +166,24 @@ h1 span{color:var(--omr)}
 .hero h3{margin:0;font-size:1.05rem;color:var(--omr)}
 .hero p{margin:0;font-size:.86rem;color:var(--ink);word-break:keep-all}
 .sem-f{font-size:.72rem;color:var(--muted);margin:0}
+.sp{display:flex;flex-direction:column;gap:6px}
+.sp-h{margin:0;font-size:.84rem;color:var(--muted)}
+.sp-h b{font-family:var(--mono);color:var(--ink)}
+.sp-big{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
+.sp-big b{font-family:var(--mono);font-size:2.2rem;line-height:1.05;font-weight:600;color:var(--omr);font-variant-numeric:tabular-nums}
+.sp-big span{font-size:.84rem;font-weight:700}
+.sp-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--rule)}
+.sp-bar i{display:block;height:100%}
+.sp-bar .g1{background:var(--omr)}
+.sp-bar .g2{background:var(--omr);opacity:.5}
+.sp-bar .g3{background:var(--muted)}
+.sp-bar .g4{background:var(--muted);opacity:.55}
+.sp-bar .g5{background:var(--muted);opacity:.3}
+.sp-leg{margin:0;display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.76rem;font-variant-numeric:tabular-nums}
+.sp-leg .g1,.sp-leg .g2{color:var(--omr);font-weight:700}
+.semrange{width:100%;accent-color:var(--omr);margin:4px 0}
+.needs summary{cursor:pointer;font-size:.78rem;color:var(--muted)}
+.needs .need{margin-top:8px}
 .rawme{margin:0;font-size:.84rem}
 .rawme b{font-family:var(--mono);font-weight:600;color:var(--me)}
 .rawme small{display:block;color:var(--muted);font-size:.72rem}
@@ -656,23 +670,40 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     return { M, m, f, p, pBad, gp, need, perf, myRaw };
   }
   const semNote = fin => `'기말 몇 등 안'은 학기말에 그 등급 이상일 확률이 50%를 넘는 기말 등수예요. 괄호 속 범위는 중간을 잘 본 사람이 기말도 잘 보는 정도(알 수 없어서 여러 경우를 섞음)에 따른 차이예요. ${fin ? "" : "기말 분포는 아직 몰라서 중간과 비슷한 모양이라고 보고, 점수 범위에는 기말이 중간보다 8점까지 쉽거나 어렵고, 점수가 25%까지 더 모이거나 퍼지는 경우를 넣었어요. "}수행평가는 다른 학생들은 모두 만점(50점)이라고 보고, 내 수행 점수만 넣어 계산해요(비워 두면 만점). 수행 1점은 중간+기말 합계 4점과 같아요.`;
-  function semHtml(mid, fin, fstr, note = true, pstr = "") {
+  // 확률 블록: 기말 x점일 때 학기말 등급 확률 (슬라이더를 움직이면 이 블록만 다시 그림)
+  function semGp(mid, fin, fx, pstr) {
+    const M = semModel(mid, fin), m = parse(mid.my), p = parse(pstr);
+    if (!M || !m) return null;
+    const perf = p && p.n >= 0 && p.n <= 50 ? p.n : 50;
+    return { gp: semProbs(M, m.n + fx + 4 * (perf - 50)), raw: perf + (m.n + fx) / 4, perf, m };
+  }
+  const pctTxt = p => p >= 0.995 ? "99% 이상" : p > 0 && p < 0.01 ? "1% 미만" : Math.round(p * 100) + "%";
+  function probHtml(mid, fin, fx, guessed, pstr) {
+    const r = semGp(mid, fin, fx, pstr); if (!r) return "";
+    const top = topGrade(r.gp);
+    const leg = r.gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("");
+    return `<div class="sp"><p class="sp-h">${guessed ? "기말도 중간과 같은 " : "기말 "}<b>${num(fx)}</b>점이면</p>
+      <div class="sp-big"><b>${pctTxt(r.gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(r.gp[top])})` : ""}</span></div>
+      <div class="sp-bar" aria-hidden="true">${r.gp.map((p, k) => p >= 0.005 ? `<i class="g${k + 1}" style="width:${p * 100}%"></i>` : "").join("")}</div>
+      <p class="sp-leg">${leg}</p>
+      <p class="rawme">학기말 원점수 <b>${num(r.raw)}</b>점 <small>= 중간 ${esc(r.m.raw)}×25% + 기말 ${num(fx)}×25% + 수행 ${num(r.perf)}</small></p></div>`;
+  }
+  function semHtml(mid, fin, fstr, note = true, pstr = "", slider = false) {
     const s = semInfo(mid, fin, fstr, pstr);
     if (!s.M) return `<div class="sem"><p class="sem-f">중간 분포 정보가 아직 없어서 학기말 등급을 계산할 수 없어요.</p></div>`;
-    if (!s.m) return `<div class="sem"><p class="sem-f">중간 점수를 넣으면 학기말 등급 예상이 나와요.</p></div>`;
-    const res = s.gp ? (() => {
-      const g = topGrade(s.gp), pm = Math.round(s.gp[g] * 100);
-      const rest = s.gp.map((p, k) => [k + 1, Math.round(p * 100)]).filter(([k, p]) => k !== g + 1 && p >= 1).map(([k, p]) => `${k}등급 ${p}%`).join(" · ");
-      return `<div class="sem-res"><span class="gb g${g + 1}${pm < 70 ? " part" : ""}"><b>${g + 1}</b><i>${pm}%</i></span><p>기말 <b>${esc(s.f.raw)}</b>점이면 학기말 <b>${g + 1}등급</b> 가능성이 가장 커요 (${pm}%)${rest ? `<small>${rest}</small>` : ""}</p></div>`;
-    })() : "";
+    if (!s.m) return `<div class="sem"><p class="sem-f">중간 점수를 넣으면 학기말 등급 확률이 나와요.</p></div>`;
+    // 기말 목표가 비어 있으면 '기말도 중간과 같은 점수'로 먼저 보여줌 (저장은 안 함)
+    const guessed = !s.f, fx = s.f ? Math.max(0, Math.min(100, s.f.n)) : Math.max(0, Math.min(100, s.m.n));
+    const center = slider || s.f ? probHtml(mid, fin, fx, guessed, pstr) : `<p class="sem-f">기말 점수를 넣으면 학기말 등급 확률이 나와요.</p>`;
+    const range = slider ? `<input type="range" class="semrange" min="0" max="100" step="0.5" value="${fx}" data-mid="${esc(mid.id)}" aria-label="${esc(mid.subject)} 기말 목표 점수">` : "";
     const scoreTxt = x => !x.sr ? `점수로는 ${x.from}점 이상`
       : `점수로는 ${x.from}점 이상 · 기말 난이도·퍼짐 따라 ${x.sr[0] ?? 0}~${x.sr[1] ?? 100}${x.sr[1] === null ? "점↑" : "점"}`;
     const need = s.need.map(x => `<span class="g${x.g + 1}"><em>${x.g + 1}등급</em>${x.from === 0 ? "기말 몇 등이든 유력"
       : x.from === null ? `기말 만점이어도 어려움 <small>(${x.best}%)</small>`
       : `기말 <b>약 ${x.rank}등</b> 안${x.rlo !== x.rhi ? ` <small>(${x.rlo}~${x.rhi}등)</small>` : ""}<small class="sc">${scoreTxt(x)}</small>`}</span>`).join("");
-    return `<div class="sem"><div class="sem-h">학기말 등급 예상 <small>중간 ${esc(s.m.raw)}점 · ${s.p ? `수행 ${esc(s.p.raw)}점 기준` : "수행 만점으로 계산"}</small></div>
-      ${s.pBad ? `<p class="sem-f warn">수행 점수는 50점 만점 기준으로 넣어 주세요. 지금은 만점으로 계산했어요.</p>` : ""}${res}<div class="need">${need}</div>
-      ${s.myRaw != null ? `<p class="rawme">내 학기말 원점수 <b>${num(s.myRaw)}</b>점 <small>= 중간 ${esc(s.m.raw)}×25% + 기말 ${esc(s.f.raw)}×25% + 수행 ${num(s.perf)}</small></p>` : ""}
+    return `<div class="sem"><div class="sem-h">학기말 등급 확률 <small>중간 ${esc(s.m.raw)}점 · ${s.p ? `수행 ${esc(s.p.raw)}점 기준` : "수행 만점으로 계산"}</small></div>
+      ${s.pBad ? `<p class="sem-f warn">수행 점수는 50점 만점 기준으로 넣어 주세요. 지금은 만점으로 계산했어요.</p>` : ""}${range}${center}
+      <details class="needs"><summary>등급별로 기말 몇 등·몇 점이 필요한지 보기</summary><div class="need">${need}</div></details>
       ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
   }
   const semKey = mid => "sem-" + mid.id;
@@ -726,12 +757,12 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
       $("examTitle").textContent = current + " · 기말 목표 계산기";
       $("count").textContent = "기말 컷 준비 중";
       $("rows").innerHTML = `<div class="soonhead"><b>COMING SOON</b><p>${esc(current)} 등급컷은 시험이 끝나고 컷이 나오는 대로 올라와요.</p>
-          <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수만 넣으면, 학기말 1·2등급을 받으려면 기말에서 몇 등 안에 들어야 하는지 알려드려요. 등수는 기말 난이도와 상관없어서 점수보다 믿을 만해요. 점수로 보면 기말 난이도와 점수가 퍼진 정도에 따라 10점 넘게 달라질 수 있어요.</p>
-          <p>기말 목표 점수도 넣으면 학기말 등급 확률까지 나와요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
+          <div class="hero"><h3>기말 목표 계산기</h3><p>중간 점수를 넣고 기말 목표 점수를 정하면, 학기말 1등급 확률을 바로 알려드려요. 막대를 움직이면서 기말에서 몇 점이 필요한지 감을 잡아 보세요.</p>
+          <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map(d => {
           const midIn = `<label>중간 점수<input class="myin" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" value="${esc(d.my)}"></label>`;
           const finIn = `<label>기말 목표<input class="myin" data-score="${esc(semKey(d))}" inputmode="decimal" placeholder="입력" value="${esc(scores[semKey(d)]?.my || "")}"></label>`;
-          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false, scores[perfKey(d)]?.my || "")}</div>`;
+          return `<div class="row"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${semHtml(d, null, scores[semKey(d)]?.my || "", false, scores[perfKey(d)]?.my || "", true)}</div>`;
         }).join("");
       return;
     }
@@ -808,7 +839,18 @@ input{font:inherit;font-size:.95rem;color:var(--ink);background:var(--bg);border
     else if (t.id === "clearYes") { scores = {}; saveLocal(); $("clearAsk").hidden = true; $("status").textContent = "내 점수를 모두 지웠어요."; render(); }
   });
   // 입력하는 즉시 저장 (칸을 벗어나지 않고 새로고침해도 남도록)
-  document.addEventListener("input", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
+  document.addEventListener("input", e => {
+    if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim());
+    // 기말 목표 슬라이더: 확률 블록만 바로 다시 그리고, 기말 목표 칸과 저장값도 맞춤
+    if (e.target.classList?.contains("semrange")) {
+      const mid = docs.find(x => x.id === e.target.dataset.mid); if (!mid) return;
+      const v = e.target.value, key = semKey(mid);
+      saveScore(key, v);
+      const box = document.querySelector(`[data-score="${key}"]`); if (box) box.value = v;
+      const sp = e.target.closest(".sem")?.querySelector(".sp");
+      if (sp) sp.outerHTML = probHtml({ ...mid, my: scores[mid.id]?.my || "" }, null, parseFloat(v), false, scores[perfKey(mid)]?.my || "");
+    }
+  });
   document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
   document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList?.contains("myin")) e.target.blur(); });
   document.addEventListener("focusout", e => { if (e.target.classList?.contains("myin")) setTimeout(render, 0); });
