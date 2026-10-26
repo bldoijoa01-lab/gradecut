@@ -86,6 +86,8 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     check('기말 탭: 목표를 바꾸면 \'중간 등수 그대로\' 버튼 꺼짐', await p.$eval(`${R} .samebtn`, e => e.getAttribute('aria-pressed') === 'false'));
     await p.click(`${R} .samebtn`); await p.waitForTimeout(300);
     check('기말 탭: \'중간 등수 그대로\' 버튼 → 목표 비움', await p.$eval(`${R} .samebtn`, e => e.getAttribute('aria-pressed') === 'true') && await p.$eval(`${R} [data-score^="semr-"]`, e => e.value === ''));
+    const dl = await Promise.all([p.waitForEvent('download', { timeout: 8000 }).catch(() => null), p.click('#saveSem')]);
+    check('기말 탭: 기말 예상 이미지 저장', dl[0] && dl[0].suggestedFilename() === 'gradecut-my-final.png' && fs.statSync(await dl[0].path()).size > 20000);
     check('기말 탭: 등급별 목표 칸 펼쳐 있음', await p.$eval(`${R} .needs`, e => e.offsetHeight > 0));
     await p.click(`${R} button.nb.g1`); await p.waitForTimeout(700);
     const goal = await p.$eval('[data-score="semr-2026-2mid-calc"]', e => e.value);

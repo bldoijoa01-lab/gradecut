@@ -501,7 +501,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   document.body.classList.add("intro");
   setTimeout(() => document.body.classList.remove("intro"), 2800);
   const LKEY = "gradecut-my-scores";
-  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false, reportUrl = "", lastSum = null;
+  let docs = [], current = null, scores = {}, renderWaiting = false, sel = null, picking = false, reportUrl = "", lastSum = null, lastSemRows = null;
   // 과목별 NEW: 지난 방문 시각보다 나중에 컷이 바뀐 과목 (처음 방문이면 표시 안 함)
   const VKEY = "gradecut-last-visit";
   let prevVisit = null; try { prevVisit = localStorage.getItem(VKEY); } catch {}
@@ -1288,6 +1288,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const rows = examDocs.filter(d => d.common || chosen.includes(d.subject))
       .sort((a, b) => (b.common ? 1 : 0) - (a.common ? 1 : 0) || a.subject.localeCompare(b.subject, "ko"))
       .map(d => viewOf({ ...d, my: myScore(d.id), g: scores[d.id]?.g || "" }));
+    lastSemRows = isSoon ? rows : null;
     if (isSoon) {
       $("summary").hidden = true;
       $("examTitle").textContent = current + " · 기말 목표 계산기";
@@ -1296,6 +1297,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           <div class="hero"><h2>기말 목표 계산기</h2><p>중간 점수를 넣고 기말 목표를 정하면, 학기말 1등급 확률을 바로 알려드려요. 막대를 움직이면서 기말에서 얼마나 해야 하는지 감을 잡아 보세요.</p>
           <div class="seg" role="group" aria-label="기말 목표 정하는 방법"><span class="thumb" aria-hidden="true" data-mv="segthumb" style="transform:translateX(${semMode === "score" ? 100 : 0}%)"></span><button type="button" data-semmode="rank" aria-pressed="${semMode === "rank"}">목표 등수로</button><button type="button" data-semmode="score" aria-pressed="${semMode === "score"}">목표 점수로</button></div>
           <p class="sem-f">${semMode === "rank" ? "등수로 정하면 기말이 쉽든 어렵든 같은 자리라서 확률이 더 정확해요." : "점수로 정하면 기말이 쉬운지 어려운지에 따라 같은 점수도 자리가 달라져서, 그만큼 확률이 덜 확실해요."}</p>
+          <button class="tbtn" type="button" id="saveSem"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>기말 예상 이미지로 저장</button>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map((d, ri) => {
           const midIn = `<label>중간 점수${numIn(`data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력"`, rawOf(d.id), 0, 100, "점")}</label>`;
@@ -1400,6 +1402,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else if (t.id === "pickDone") { if (!sel) sel = []; picking = false; saveSel(); render(); }
     else if (t.id === "pickEdit") { picking = true; render(); }
     else if (t.dataset.themeSet) setTheme(t.dataset.themeSet, true);
+    else if (t.id === "saveSem" || (t.id === "saveImg" && lastSemRows)) { saveSemImage(); }
     else if (t.id === "saveImg") { if (lastSum) saveImage(); else $("status").textContent = "점수를 하나 이상 넣으면 이미지를 만들 수 있어요."; }
     else if (t.id === "moveBtn") { const box = $("move"); box.hidden = !box.hidden; t.setAttribute("aria-expanded", String(!box.hidden)); $("clearAsk").hidden = true; if (!box.hidden) { $("moveLink").value = moveLink(); $("moveLink").select(); } }
     else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
@@ -1494,12 +1497,70 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
     c.fillText("추정 컷이 들어간 과목은 실제 컷이 나오면 바뀔 수 있어요.", pad, H - 60);
     c.fillText(location.host + location.pathname.replace(/index\.html$/, ""), pad, H - 28);
+    await shareCanvas(cv, "gradecut-my-grades.png", "내 예상 등급");
+  }
+  // 캔버스를 사진으로: 휴대폰은 공유창, 아니면 파일로 저장
+  async function shareCanvas(cv, name, title) {
     const blob = await new Promise(r => cv.toBlob(r, "image/png")); if (!blob) return;
-    const file = new File([blob], "gradecut-my-grades.png", { type: "image/png" });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: "내 예상 등급" }); return; } catch (e) { if (e?.name === "AbortError") return; } }
+    const file = new File([blob], name, { type: "image/png" });
+    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch (e) { if (e?.name === "AbortError") return; } }
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $("status").textContent = "이미지를 저장했어요.";
+  }
+  // 과목 하나의 기말 예상: 지금 정한 목표(없으면 기말도 중간 등수 그대로)에서의 학기말 등급 확률과 한마디
+  function semSnap(d) {
+    const ps = rawOf(perfKey(d)), s = semInfo(d, null, "", ps);
+    if (!s.M || !s.m) return null;
+    const N = s.M.N, clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const rr0 = clamp(Math.round(s.M.above(s.m.n)), 1, N), base = semGpRank(d, null, rr0, ps);
+    const out = { name: d.alias || d.subject, mid: s.m.raw, perf: s.p ? s.p.raw : "", cmt: semComment(base.gp).replace(/^\S+\s/, ""), goal: `기말도 중간 등수 그대로 (약 ${rr0}등)`, gp: base.gp };
+    if (semMode === "score") {
+      const f0 = parse(okVal(rawOf(semKey(d)), 0, 100));
+      if (f0) { out.goal = `기말 ${num(f0.n)}점`; out.gp = semGp(d, null, clamp(f0.n, 0, 100), ps).gp; }
+    } else {
+      const r0 = parse(okVal(rawOf(semrKey(d)), 1, N));
+      if (r0) { const rr = clamp(Math.round(r0.n), 1, N); out.goal = `기말 ${rr}등`; out.gp = semGpRank(d, null, rr, ps).gp; }
+    }
+    return out;
+  }
+  async function saveSemImage() {
+    const list = (lastSemRows || []).filter(d => parse(d.my)).map(semSnap).filter(Boolean);
+    if (!list.length) { $("status").textContent = "중간 점수를 하나 이상 넣으면 기말 예상 이미지를 만들 수 있어요."; return; }
+    try { await Promise.all(["700 40px", "500 20px"].map(f => document.fonts.load(`${f} "IBM Plex Sans KR"`)).concat(document.fonts.load('600 40px "IBM Plex Mono"'))); } catch {}
+    const W = 1080, pad = 50, cw = W - pad * 2, ch = 250, gap = 20, top = 200, H = top + list.length * (ch + gap) + 120;
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const c = cv.getContext("2d"), sans = '"IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif', mono = '"IBM Plex Mono", ui-monospace, monospace';
+    const OMR = "#c42f57", INK = "#1b2230", MUTED = "#5f687c", RULE = "#dfe3ea", GC = ["#d43d63", "#ef8fa8", "#e8a93a", "#7f9fd0", "#aab2bf"];
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    c.fillStyle = "#f5f6f8"; c.fillRect(0, 0, W, H);
+    c.fillStyle = OMR; c.font = `700 24px ${sans}`; c.fillText("오송고 2학년", pad, 52);
+    c.fillStyle = INK; c.font = `700 44px ${sans}`; c.fillText("등급컷", pad, 100);
+    const w1 = c.measureText("등급컷 ").width; c.fillStyle = OMR; c.fillText("아카이브", pad + w1, 100);
+    c.fillStyle = MUTED; c.font = `500 26px ${sans}`; c.fillText("학기말 등급 예상 · 기말 목표 계산기", pad, 140);
+    c.fillStyle = MUTED; c.font = `500 22px ${sans}`; c.fillText("학기말 = 중간 25% + 기말 25% + 수행 50%", pad, 176);
+    list.forEach((t, i) => {
+      const x = pad, y = top + i * (ch + gap), p1 = t.gp[0], inner = cw - 60;
+      rr(x, y, cw, ch, 18); c.fillStyle = "#ffffff"; c.fill(); c.strokeStyle = RULE; c.lineWidth = 2; c.stroke();
+      c.textAlign = "left"; c.fillStyle = INK; c.font = `700 34px ${sans}`; c.fillText(t.name.length > 10 ? t.name.slice(0, 10) + "…" : t.name, x + 30, y + 56);
+      c.fillStyle = MUTED; c.font = `500 23px ${sans}`; c.fillText(`중간 ${t.mid}점 · ${t.goal}${t.perf ? ` · 수행 ${t.perf}점` : ""}`, x + 30, y + 94);
+      c.textAlign = "right"; c.fillStyle = MUTED; c.font = `500 22px ${sans}`; c.fillText("학기말 1등급 확률", x + cw - 30, y + 46);
+      c.fillStyle = OMR; c.font = `600 56px ${mono}`; c.fillText(pctTxt(p1), x + cw - 30, y + 100); c.textAlign = "left";
+      let bx = x + 30; const by = y + 118;
+      c.save(); rr(x + 30, by, inner, 22, 11); c.clip();
+      c.fillStyle = RULE; c.fillRect(x + 30, by, inner, 22);
+      t.gp.forEach((p, k) => { const w = p >= 0.005 ? p * inner : 0; c.fillStyle = GC[k]; c.fillRect(bx, by, w, 22); bx += w; });
+      c.restore();
+      let lx = x + 30; c.font = `500 22px ${sans}`;
+      t.gp.forEach((p, k) => { if (p < 0.005) return; const txt = `${k + 1}등급 ${pctTxt(p)}`;
+        c.fillStyle = GC[k]; rr(lx, y + 164, 16, 16, 4); c.fill(); c.fillStyle = INK; c.fillText(txt, lx + 24, y + 180); lx += 24 + c.measureText(txt).width + 26; });
+      let fs = 25; c.font = `700 ${fs}px ${sans}`; while (c.measureText(t.cmt).width > inner && fs > 16) { fs--; c.font = `700 ${fs}px ${sans}`; }
+      c.fillStyle = INK; c.fillText(t.cmt, x + 30, y + 226);
+    });
+    c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
+    c.fillText("기말 점수는 아직 몰라서 목표로 계산한 값이에요. 실제와 다를 수 있어요.", pad, H - 60);
+    c.fillText(location.host + location.pathname.replace(/index\.html$/, ""), pad, H - 28);
+    await shareCanvas(cv, "gradecut-my-final.png", "기말 예상");
   }
 
   // 개인 점수 가져오기 링크: #s=<base64 JSON>
