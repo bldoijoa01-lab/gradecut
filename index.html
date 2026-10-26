@@ -1497,14 +1497,12 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
     c.fillText("추정 컷이 들어간 과목은 실제 컷이 나오면 바뀔 수 있어요.", pad, H - 60);
     c.fillText(location.host + location.pathname.replace(/index\.html$/, ""), pad, H - 28);
-    await shareCanvas(cv, "gradecut-my-grades.png", "내 예상 등급");
+    await shareCanvas(cv, "gradecut-my-grades.png");
   }
-  // 캔버스를 사진으로: 휴대폰은 공유창, 아니면 파일로 저장
-  async function shareCanvas(cv, name, title) {
+  // 캔버스를 사진 파일로 바로 저장 (공유창은 안 띄움)
+  async function shareCanvas(cv, name) {
     const blob = await new Promise(r => cv.toBlob(r, "image/png")); if (!blob) return;
-    const file = new File([blob], name, { type: "image/png" });
-    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch (e) { if (e?.name === "AbortError") return; } }
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $("status").textContent = "이미지를 저장했어요.";
   }
@@ -1560,7 +1558,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     c.fillStyle = MUTED; c.font = `500 22px ${sans}`;
     c.fillText("기말 점수는 아직 몰라서 목표로 계산한 값이에요. 실제와 다를 수 있어요.", pad, H - 60);
     c.fillText(location.host + location.pathname.replace(/index\.html$/, ""), pad, H - 28);
-    await shareCanvas(cv, "gradecut-my-final.png", "기말 예상");
+    await shareCanvas(cv, "gradecut-my-final.png");
   }
 
   // 개인 점수 가져오기 링크: #s=<base64 JSON>
