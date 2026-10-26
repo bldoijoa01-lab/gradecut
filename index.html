@@ -225,6 +225,9 @@ h1 span{color:var(--omr)}
 .sp-big span{font-size:.84rem;font-weight:700}
 .sp-cmt{margin:6px 0 10px;font-size:.84rem;font-weight:700;color:var(--ink)}
 .sp-cmt small{font-weight:500;color:var(--muted)}
+.samebtn{font:inherit;font-size:.78rem;font-weight:700;color:var(--omr);background:var(--omr-soft);border:1px solid color-mix(in srgb,var(--omr) 35%,transparent);border-radius:999px;padding:6px 12px;cursor:pointer;margin:0 0 10px}
+.samebtn[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:var(--on-fill);cursor:default}
+.samebtn:focus-visible{outline:2px solid var(--me);outline-offset:2px}
 .sp-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--rule)}
 .sp-bar i{display:block;height:100%}
 /* 등급별 색 (막대·범례 같이): 1 진분홍 · 2 연분홍 · 3 노랑 · 4 하늘 · 5 회색 */
@@ -1114,6 +1117,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       range = `<input type="range" class="semrange rank" min="1" max="${N}" step="1" value="${rr}" data-mid="${esc(mid.id)}" data-mode="rank" aria-label="${esc(mid.subject)} 기말 목표 등수"><div class="rr" aria-hidden="true"><span>${N}등</span><span>1등</span></div>`;
     } else center = s.f ? probHtml(mid, fin, Math.max(0, Math.min(100, s.f.n)), false, pstr) : `<p class="sem-f">기말 점수를 넣으면 학기말 등급 확률이 나와요.</p>`;
     let cmt = "";
+    const atBase = slider && !(semMode === "score" ? parse(fstr) : parse(rstr));   // 목표를 안 정한 상태 = 중간 등수 그대로
     if (slider) { const b = semGpRank(mid, fin, Math.max(1, Math.round(s.M.above(s.m.n))), pstr); cmt = b ? semComment(b.gp) + " <small>(기말도 중간 등수 그대로라면)</small>" : ""; }
     else if (s.f) cmt = semComment(semGp(mid, fin, Math.max(0, Math.min(100, s.f.n)), pstr).gp);
     const scoreTxt = x => !x.sr ? `점수로는 ${x.from}점 이상`
@@ -1128,7 +1132,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         : `<span class="nb g${x.g + 1}">${body}</span>`;
     }).join("");
     return `<div class="sem"><div class="sem-h">학기말 등급 확률 <small>중간 ${esc(s.m.raw)}점 · ${s.p ? `수행 ${esc(s.p.raw)}점 기준` : "수행 만점으로 계산"}</small></div>
-      ${s.pBad ? `<p class="sem-f warn">수행 점수는 50점 만점 기준으로 넣어 주세요. 지금은 만점으로 계산했어요.</p>` : ""}${cmt ? `<p class="sp-cmt">${cmt}</p>` : ""}${range}${center}
+      ${s.pBad ? `<p class="sem-f warn">수행 점수는 50점 만점 기준으로 넣어 주세요. 지금은 만점으로 계산했어요.</p>` : ""}${cmt ? `<p class="sp-cmt">${cmt}</p>` : ""}${slider ? `<button type="button" class="samebtn" data-samemid="${esc(mid.id)}" aria-pressed="${atBase}">↺ 기말도 중간 등수 그대로라면?</button>` : ""}${range}${center}
       <div class="needs"><div class="needs-h">🎯 학기말 등급별 기말 목표${slider ? "<small>누르면 내 목표로 들어가요</small>" : ""}</div><div class="need">${need}</div></div>
       ${note ? `<p class="sem-f">${semNote(fin)}</p>` : ""}</div>`;
   }
@@ -1401,6 +1405,10 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     else if (t.id === "moveCopy") { const v = $("moveLink").value; (navigator.clipboard ? navigator.clipboard.writeText(v) : Promise.reject()).then(() => { $("status").textContent = "링크를 복사했어요. 다른 기기에서 열어 보세요."; }, () => { $("moveLink").select(); document.execCommand?.("copy"); $("status").textContent = "링크를 길게 눌러 복사해 주세요."; }); }
     else if (t.dataset.goexam) { current = UPCOMING.find(e => !exams().includes(e)) || current; render(); document.querySelector(".sheet")?.scrollIntoView({ behavior: "smooth", block: "start" }); }
     else if (t.id === "promoClose") { try { localStorage.setItem("gradecut-promo-closed", "1"); } catch {} $("promo").hidden = true; }
+    else if (t.dataset.samemid) {
+      const mid = docs.find(x => x.id === t.dataset.samemid);
+      if (mid) { saveScore(semMode === "rank" ? semrKey(mid) : semKey(mid), ""); $("status").textContent = "기말도 중간 등수 그대로라고 보고 다시 계산했어요."; render(); }
+    }
     else if (t.dataset.goalmid) {
       const mid = docs.find(x => x.id === t.dataset.goalmid);
       if (mid) { const rank = semMode === "rank"; saveScore(rank ? semrKey(mid) : semKey(mid), rank ? t.dataset.grank : t.dataset.gscore);
@@ -1431,7 +1439,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       const box = document.querySelector(`[data-score="${key}"]`); if (box) box.value = v;
       const sp = e.target.closest(".sem")?.querySelector(".sp"), m = { ...mid, my: myScore(mid.id) }, ps = rawOf(perfKey(mid));
       if (sp) sp.outerHTML = rank ? probRankHtml(m, null, parseInt(v), false, ps) : probHtml(m, null, parseFloat(v), false, ps);
-      const box2 = e.target.closest(".sem"); if (box2) { animateNumbers(box2); moveAnim(box2); }
+      const box2 = e.target.closest(".sem"); if (box2) { box2.querySelector(".samebtn")?.setAttribute("aria-pressed", "false"); animateNumbers(box2); moveAnim(box2); }
     }
   });
   document.addEventListener("change", e => { if (e.target.dataset?.score) saveScore(e.target.dataset.score, e.target.value.trim()); });
