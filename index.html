@@ -223,6 +223,7 @@ h1 span{color:var(--omr)}
 .sp-big{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 10px}
 .sp-big b{font-family:var(--mono);font-size:2.2rem;line-height:1.05;font-weight:600;color:var(--omr);font-variant-numeric:tabular-nums}
 .sp-big span{font-size:.84rem;font-weight:700}
+.sp-cmt{margin:6px 0 10px;font-size:.84rem;font-weight:700;color:var(--ink)}
 .sp-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--rule)}
 .sp-bar i{display:block;height:100%}
 /* 등급별 색 (막대·범례 같이): 1 진분홍 · 2 연분홍 · 3 노랑 · 4 하늘 · 5 회색 */
@@ -1061,9 +1062,22 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     }
     return { gp, q, lo: Math.min(...fs), hi: Math.max(...fs), N: M.N };
   }
+  // 확률에 맞는 한마디: 1등급 확률이 높을수록 안심, 낮을수록 기말이 승부처라고
+  function semComment(gp) {
+    const p1 = gp[0], top = topGrade(gp), p12 = gp[0] + gp[1];
+    if (p1 >= 0.9) return "🎉 1등급이 거의 확실해요. 기말에서 크게 무너지지만 않으면 돼요.";
+    if (p1 >= 0.6) return "😎 1등급이 유력해요. 기말도 지금 자리만 지키면 돼요.";
+    if (p1 >= 0.35) return "🔥 1등급 가능성이 반반이에요. 기말이 승부처예요!";
+    if (p1 >= 0.1) return "💪 1등급은 도전이에요. 기말에서 충분히 뒤집을 수 있어요.";
+    if (top === 1) return "👍 2등급이 가장 유력해요. 1등급은 기말에서 한 번 더 올려야 해요.";
+    if (top === 2) return p12 >= 0.2 ? "📈 3등급이 유력하지만 2등급도 노려볼 만해요. 기말에서 올려 봐요." : "📈 3등급권이에요. 기말을 잘 보면 2등급도 가능해요.";
+    if (top === 3) return "🌱 4등급권이에요. 한 번에 뒤집긴 어려워도 기말에서 올릴 여지는 있어요.";
+    return "🧗 기말에서 많이 올려야 해요. 아래 '등급별 기말 목표'에서 필요한 등수를 확인해 봐요.";
+  }
   const gpBlock = (gp, key) => {
     const top = topGrade(gp);
     return `<div class="sp-big"><b${cntAttr(gp[0], "semp-" + (key || ""))}>${pctTxt(gp[0])}</b><span>학기말 1등급 확률${top > 0 ? ` · 가장 유력한 건 ${top + 1}등급 (${pctTxt(gp[top])})` : ""}</span></div>
+      <p class="sp-cmt">${semComment(gp)}</p>
       <div class="sp-bar" aria-hidden="true">${gp.map((p, k) => `<i class="g${k + 1}" data-mv="semb-${esc(key || "")}-${k}" style="width:${p >= 0.005 ? p * 100 : 0}%"></i>`).join("")}</div>
       <p class="sp-leg">${gp.map((p, k) => p >= 0.005 ? `<span class="g${k + 1}">${k + 1}등급 ${pctTxt(p)}</span>` : "").join("")}</p>`;
   };
