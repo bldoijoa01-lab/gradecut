@@ -143,6 +143,14 @@ h1 span{color:var(--omr)}
 .quota span.g1::before{background:var(--g1)}.quota span.g2::before{background:var(--g2)}.quota span.g3::before{background:var(--g3)}.quota span.g4::before{background:var(--g4)}
 .quota span i{font-style:normal;font-family:var(--mono);font-weight:600}
 .quota span small{color:var(--muted)}
+.more{grid-column:1/-1;border-top:1px dashed var(--rule);margin-top:2px}
+.more>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;padding:10px 0 4px;font-size:.84rem;font-weight:700;color:var(--me)}
+.more>summary::-webkit-details-marker{display:none}
+.more>summary::before{content:"▸";display:inline-block;width:1em;font-size:.9em}
+.more[open]>summary::before{content:"▾"}
+.more>summary small{font-weight:500;color:var(--muted);font-size:.74rem}
+.more>summary:focus-visible{outline:2px solid var(--me);outline-offset:2px;border-radius:4px}
+.more-body{display:grid;grid-template-columns:minmax(0,1fr);gap:8px 12px;padding-top:8px}
 .facts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
 .facts span{font-size:.76rem;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--rule)}
 .dist{grid-column:1/-1;display:flex;flex-direction:column;gap:5px;padding:10px 12px;background:var(--bg);border-radius:8px}
@@ -272,7 +280,15 @@ h1 span{color:var(--omr)}
 .soonhead b{font-family:var(--mono);font-size:.95rem;letter-spacing:.12em;color:var(--omr)}
 .soonhead p{margin:0;color:var(--muted);font-size:.84rem;word-break:keep-all}
 .weaknote{grid-column:1/-1;margin:0;font-size:.76rem;color:var(--warn)}
-.news{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.news{background:var(--surface);border:1px solid var(--rule);border-radius:12px;padding:8px 14px}
+.news>details{display:flex;flex-direction:column;gap:8px}
+.news summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:.86rem;min-width:0;padding:2px 0}
+.news summary::-webkit-details-marker{display:none}
+.news summary::after{content:"▸";margin-left:auto;color:var(--muted)}
+.news details[open] summary::after{content:"▾"}
+.news summary:focus-visible{outline:2px solid var(--me);outline-offset:2px;border-radius:4px}
+.news .nlast{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:.8rem}
+.news details[open] .nlast{display:none}
 .news-h{display:flex;align-items:center;gap:8px;font-size:.88rem}
 .news-h .new{font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--omr);color:var(--on-fill)}
 .news ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -285,10 +301,10 @@ h1 span{color:var(--omr)}
 .tag.f{background:rgba(47,111,214,.12);color:var(--me)}
 .news-f{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:.8rem}
 .news-f a{color:var(--me);text-decoration:none;font-weight:600}
-.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:14px 16px;border-radius:12px;background:var(--omr-soft);border:1px solid transparent}
+.cta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px;padding:10px 14px;border-radius:12px;background:var(--omr-soft);border:1px solid transparent}
 .cta div{flex:1 1 260px;min-width:0}
 .cta b{font-size:.95rem;color:var(--omr)}
-.cta p{margin:2px 0 0;font-size:.82rem;color:var(--ink);word-break:keep-all}
+.cta small{display:block;margin-top:1px;font-size:.76rem;color:var(--ink);word-break:keep-all}
 .cta .btn{text-decoration:none;white-space:nowrap}
 .cta .btn.off{background:var(--rule);color:var(--muted);cursor:default}
 .ask{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted)}
@@ -353,6 +369,15 @@ form h2{margin:0;font-size:1rem}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .myin{font-family:var(--mono);font-weight:600;font-size:1.02rem;text-align:center;color:var(--me);background:var(--surface);border:1px dashed var(--me);padding:2px 4px;width:100%;max-width:5.5em}
 .myin::placeholder{color:var(--muted);font-weight:500;font-size:.8rem}
+.metaline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:6px}
+.metaline .asof{margin:0}
+.about{font-size:.8rem}
+.about>summary{cursor:pointer;list-style:none;color:var(--me);font-weight:700;padding:4px 6px;border-radius:6px}
+.about>summary::-webkit-details-marker{display:none}
+.about>summary:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+.about>div{flex-basis:100%;margin-top:6px;padding:8px 12px;border-left:3px solid var(--omr);background:var(--surface);border-radius:0 8px 8px 0;color:var(--muted);word-break:keep-all}
+.about>div p{margin:2px 0}
+.about[open]{flex-basis:100%}
 .privacy{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--me);margin:4px 0 0}
 .grid.g3{grid-template-columns:1fr 1fr 2fr}
 label{display:flex;flex-direction:column;gap:4px;font-size:.76rem;color:var(--muted);letter-spacing:.03em;min-width:0}
@@ -460,10 +485,13 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       <div class="promo-t"><span class="promo-tag">NEW</span><b>기말 목표 계산기 오픈!</b><p>중간 점수만 넣으면, 학기말 1등급 받으려면 기말에서 몇 등 안에 들어야 하는지 알려드려요.</p></div>
       <div class="promo-b"><button class="btn" type="button" data-goexam="soon">계산해 보기 →</button><button class="icon" type="button" id="promoClose" aria-label="배너 닫기">닫기</button></div>
     </section>
-    <p class="sub">5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
-    <p class="scope">오송고등학교 2학년 시험 기준이에요. 다른 학교나 다른 학년의 등급컷과는 달라요. 학교 공식 자료가 아니라 학생들이 모은 정보로 만든 사이트예요.</p>
-    <p class="asof" id="asof">등급컷 불러오는 중</p>
-    <p class="privacy">각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
+    <p class="sub">오송고 2학년 시험 기준 · 학생들이 모은 정보예요 (학교 공식 자료 아님)</p>
+    <div class="metaline"><p class="asof" id="asof">등급컷 불러오는 중</p>
+      <details class="about"><summary>ⓘ 안내</summary><div>
+        <p>5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
+        <p>오송고등학교 2학년 시험 기준이에요. 다른 학교나 다른 학년의 등급컷과는 달라요.</p>
+        <p>각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
+      </div></details></div>
   </header>
 
   <section class="cta" id="cta" aria-label="정보 제보"></section>
@@ -516,7 +544,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const isNewDoc = d => !!(prevVisit && d.at && new Date(d.at) > new Date(prevVisit));
   // 정보 제보: updates.json의 report_url (비어 있으면 '준비 중')
   function renderCta() {
-    $("cta").innerHTML = `<div><b>등급컷 제보 받아요</b><p>알고 있는 컷·평균·점수대 인원(예: 90점 이상 5명)이 있으면 알려주세요. 하나만 더 알아도 추정 범위가 확 좁아져요. 이름은 받지 않아요.</p></div>`
+    $("cta").innerHTML = `<div><b>컷·평균을 아시면 제보해 주세요</b><small>하나만 더 알아도 추정이 확 좁아져요 · 이름은 안 받아요</small></div>`
       + (reportUrl ? `<a class="btn" href="${esc(reportUrl)}" target="_blank" rel="noopener">정보 제보하기</a>` : `<span class="btn off" aria-disabled="true">제보 폼 준비 중</span>`);
   }
   // 과목 행: 아직 확정 안 된 컷이 있으면 '이 과목 n컷 알면 제보하기' (제보 주소가 있을 때만)
@@ -527,6 +555,14 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     return `<p class="ask">${miss.length === 4 ? "이 과목 등급컷" : `이 과목 ${miss.join("·")}컷`}${d.avg ? "" : "이나 평균"}을 알면 <a href="${esc(reportUrl)}" target="_blank" rel="noopener">제보하기</a></p>`;
   }
   const SKEY = "gradecut-my-electives";
+  // '자세히 보기'를 펼쳐 둔 과목: 다시 그려도, 다음에 열어도 그대로
+  const OKEY = "gradecut-open";
+  let openIds = (() => { try { const v = JSON.parse(localStorage.getItem(OKEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } })();
+  document.addEventListener("toggle", e => {
+    const t = e.target, id = t.dataset?.more; if (!id) return;
+    openIds = t.open ? [...new Set([...openIds, id])] : openIds.filter(x => x !== id);
+    try { localStorage.setItem(OKEY, JSON.stringify(openIds)); } catch {}
+  }, true);
   // 정보가 적은 과목(weak)은 추정 컷·석차·분포를 기본으로 숨기고, '추정 컷 보기'를 누른 과목만 보여줌
   const EKEY = "gradecut-show-est";
   let semMode = (() => { try { return localStorage.getItem("gradecut-sem-mode") === "score" ? "score" : "rank"; } catch { return "rank"; } })();
@@ -1357,17 +1393,19 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         ${askHtml(d)}
         ${d.weak ? `<p class="weaknote">${d.hiddenEst ? "정보가 적어서 2~4컷 추정·석차·분포는 숨겨 뒀어요. '추정 컷 보기'를 누르면 나오지만 범위가 아주 넓어요." : "정보가 적은 과목이라 추정 컷과 석차의 범위가 아주 넓어요. 참고만 하세요."}</p>` : ""}
         <div class="cuts">${cells}${me}</div>
-        <div class="strip" aria-hidden="true"><div class="base"></div>
-          <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
-        ${quotaHtml(d)}
         ${gradeProbHtml(d)}
         ${goalHtml(d)}
-        ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
         ${cmpHtml(d)}
         ${semRow(d)}
-        ${chartHtml(d)}
-        ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
-        ${d.at ? `<p class="rowat">컷 업데이트 ${fmt(d.at, true)}</p>` : ""}
+        <details class="more" data-more="${esc(d.id)}"${openIds.includes(d.id) ? " open" : ""}><summary>자세히 보기 <small>점수 막대 · 등급별 인원 · 분포 · 근거</small></summary><div class="more-body">
+          <div class="strip" aria-hidden="true"><div class="base"></div>
+            <span class="scale" style="left:0">0</span><span class="scale" style="right:0">100</span>${ticks}${dot}</div>
+          ${quotaHtml(d)}
+          ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
+          ${chartHtml(d)}
+          ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
+          ${d.at ? `<p class="rowat">컷 업데이트 ${fmt(d.at, true)}</p>` : ""}
+        </div></details>
       </div>`;
     }).join("");
   }
@@ -1599,9 +1637,9 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     let seen = null; try { seen = localStorage.getItem(LSEEN); } catch {}
     const isNew = it => seen && new Date(it.at) > new Date(seen);
     const fresh = items.filter(isNew).length;
-    $("news").innerHTML = `<div class="news-h"><b>최근 업데이트</b>${fresh ? `<span class="new">새 소식 ${fresh}개</span>` : ""}</div>
+    $("news").innerHTML = `<details><summary><b>최근 업데이트</b>${fresh ? `<span class="new">새 소식 ${fresh}개</span>` : ""}<span class="nlast">${esc(items[0].title)}</span></summary>
       <ul>${items.slice(0, 3).map(it => `<li><time>${esc(fmt(it.at, true))}</time><span class="tag ${it.kind === "data" ? "d" : "f"}">${it.kind === "data" ? "등급컷" : "기능"}</span><span class="t">${esc(it.title)}${isNew(it) ? `<em>NEW</em>` : ""}</span></li>`).join("")}</ul>
-      <div class="news-f"><a href="updates.html">업데이트 내역 전체 보기 →</a></div>`;
+      <div class="news-f"><a href="updates.html">업데이트 내역 전체 보기 →</a></div></details>`;
     $("news").hidden = false;
     try { localStorage.setItem(LSEEN, items[0].at); } catch {}
   }).catch(() => {});
