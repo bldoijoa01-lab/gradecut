@@ -47,9 +47,9 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
 
   // 3. 등급 확률·확정·입력 검사
   {
-    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel(['물질과 에너지']), 'gradecut-my-scores': scores({ '2026-2mid-chem': '48', '2026-2mid-hwaeon': '73.1' }) } });
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel(['물질과 에너지']), 'gradecut-my-scores': scores({ '2026-2mid-chem': '52', '2026-2mid-hwaeon': '73.1' }) } });
     const chem = await rowOf(p, '물질과'), hw = await rowOf(p, '화법과');
-    check('화학 48점: 등급 확률 표시', /\d+%\s*\d등급일 확률/.test(await chem.$eval('.gprob', e => e.innerText.replace(/\n/g, ' '))));
+    check('화학 52점(3·4등급 사이): 등급 확률 표시', /\d+%\s*\d등급일 확률/.test(await chem.$eval('.gprob', e => e.innerText.replace(/\n/g, ' '))));
     const q = await (await rowOf(p, '미적분')).$eval('.quota', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
     const mr = await rowOf(p, '미적분');
     check('카드: 자세히 보기는 처음에 접힘(막대·등급별 인원·분포 숨김)', await mr.$eval('details.more', e => !e.open) && await mr.$eval('.strip', e => !e.checkVisibility({ contentVisibilityAuto: true, visibilityProperty: true })) && await chem.$eval('.gprob', e => e.offsetHeight > 0));
@@ -73,7 +73,7 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });
     await p.waitForTimeout(2900);
     const segs = () => p.evaluate(() => { const bar = [...document.querySelectorAll('.row')].find(e => e.innerText.includes('화법')).querySelector('.gprob .sp-bar'); const W = bar.getBoundingClientRect().width; return [...bar.children].map(i => i.getBoundingClientRect().width / W * 100); });
-    await p.fill('[data-score="2026-2mid-hwaeon"]', '58'); await p.press('[data-score="2026-2mid-hwaeon"]', 'Enter');
+    await p.fill('[data-score="2026-2mid-hwaeon"]', '56'); await p.press('[data-score="2026-2mid-hwaeon"]', 'Enter');
     const seq = []; for (let i = 0; i < 16; i++) { seq.push(await segs()); await p.waitForTimeout(50); }   // 다시 그린 뒤 시작하므로 여러 번 재 봄
     const end = seq[seq.length - 1], mids = seq.filter(x => x[1] < 99 && x[1] > end[1] + 1);
     check('확률 막대: 움직이는 중에도 합 100%', seq.every(x => Math.abs(x.reduce((a, b) => a + b, 0) - 100) < 1.5));
