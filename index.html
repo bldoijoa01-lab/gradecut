@@ -150,6 +150,8 @@ h1 span{color:var(--omr)}
 .more[open]>summary::before{content:"▾"}
 .more>summary small{font-weight:500;color:var(--muted);font-size:.74rem}
 .more>summary:focus-visible{outline:2px solid var(--me);outline-offset:2px;border-radius:4px}
+.helpline{grid-column:1/-1;margin:0;font-size:.78rem;color:var(--muted);word-break:keep-all}
+.helpline a{color:var(--me);font-weight:700}
 .more-body{display:grid;grid-template-columns:minmax(0,1fr);gap:8px 12px;padding-top:8px}
 .facts{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
 .facts span{font-size:.76rem;padding:3px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--rule)}
@@ -544,8 +546,13 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const isNewDoc = d => !!(prevVisit && d.at && new Date(d.at) > new Date(prevVisit));
   // 정보 제보: updates.json의 report_url (비어 있으면 '준비 중')
   function renderCta() {
-    $("cta").innerHTML = `<div><b>컷·평균을 아시면 제보해 주세요</b><small>하나만 더 알아도 추정이 확 좁아져요 · 이름은 안 받아요</small></div>`
+    $("cta").innerHTML = `<div><b>컷·평균·성적표 점수와 석차를 아시면 제보해 주세요</b><small>성적표의 '내 점수'와 '석차' 한 쌍이 특히 큰 도움이 돼요 · 이름은 안 받아요</small></div>`
       + (reportUrl ? `<a class="btn" href="${esc(reportUrl)}" target="_blank" rel="noopener">정보 제보하기</a>` : `<span class="btn off" aria-disabled="true">제보 폼 준비 중</span>`);
+  }
+  // 과목마다: 성적표의 점수·석차 한 쌍이 석차 예상을 가장 잘 좁혀 줌 (그 점수 근처가 정확해지고, 모일수록 전체가 정확해짐)
+  function helpHtml(d) {
+    if (!reportUrl) return "";
+    return `<p class="helpline">📮 성적표의 이 과목 <b>점수와 석차</b>(동석차 수 포함)를 알려 주시면 석차 예상이 더 정확해져요 · <a href="${esc(reportUrl)}" target="_blank" rel="noopener">제보하기</a></p>`;
   }
   // 과목 행: 아직 확정 안 된 컷이 있으면 '이 과목 n컷 알면 제보하기' (제보 주소가 있을 때만)
   function askHtml(d) {
@@ -622,8 +629,29 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     return false;
   }
 
+  // 보정: 학교 성적표의 점수·석차와 맞춰 봤더니(처음 보는 점수 7개 중 4개만 90% 범위 안) 계산이 만든 범위가 실제보다 좁았음.
+  // 석차 범위의 폭을 CAL배로 넓히고(이미 석차를 아는 점수에선 폭이 0이라 그대로), 추정 컷 근처의 등급 확률은 같은 만큼 번지게 함
+  const CAL = 1.6;
   // 시뮬레이션 표(rx 점수 격자마다 등수 5%/50%/95%, 등급 확률 %)에서 x점 값을 보간
   function simAt(d, x) {
+    const s = simRaw(d, x); if (!s) return null;
+    s.lo = Math.round(s.mid - CAL * (s.mid - s.lo)); s.hi = Math.round(s.mid + CAL * (s.hi - s.mid));
+    // 가까이 있는 추정 컷의 90% 범위 폭 w에서, 보정으로 늘어난 불확실성(약 0.38w)만큼 점수를 흔들어 등급 확률을 섞음
+    if (s.gp && d.cut_ranges) {
+      let w = 0;
+      for (const r of Object.values(d.cut_ranges)) {
+        const gap = Math.max(r[0] - x, x - r[2], 0), rw = r[2] - r[0];
+        if (gap <= 1.5 * rw && rw > w) w = rw;
+      }
+      if (w > 0) {
+        const sg = 0.38 * w, K = [[-2, 0.06], [-1, 0.24], [0, 0.40], [1, 0.24], [2, 0.06]], g = [0, 0, 0, 0, 0];
+        for (const [o, wt] of K) { const q = o === 0 ? s : simRaw(d, x + o * sg); (q.gp || s.gp).forEach((v, k) => { g[k] += v * wt; }); }
+        s.gp = g;
+      }
+    }
+    return s;
+  }
+  function simRaw(d, x) {
     const X = d.rx;
     if (!Array.isArray(X) || !Array.isArray(d.r50) || X.length < 2) return null;
     x = Math.max(X[0], Math.min(X[X.length - 1], x));
@@ -799,7 +827,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       const w = /x/i.test(v) ? 1 : 0; return { i, kind: "sure", w, pts: 25 * Math.exp(-w / 25) };
     });
     if (!cuts.some(x => x.kind !== "none") || !Array.isArray(rw)) return null;
-    const cutPts = cuts.reduce((a, x) => a + x.pts, 0), rankPts = 40 * Math.exp(-rw[1] / 0.15);
+    const cutPts = cuts.reduce((a, x) => a + x.pts, 0), rankPts = 40 * Math.exp(-rw[1] * CAL / 0.15);
     const score = Math.round(0.6 * cutPts + rankPts);
     const [, lv, cls] = ACC_LV.find(([t]) => score >= t);
     return { score, lv, cls, cuts, cutPts, rankPts, rw: rw[1] };
@@ -810,7 +838,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const sure = a.cuts.filter(x => x.kind === "sure").length, est = a.cuts.filter(x => x.kind === "est");
     const tip = [`정확도 ${a.score}점 · ${a.lv}`,
       `컷: 확정 ${sure}개${est.length ? `, 추정 ${est.length}개(90% 범위 ${est.map(x => `${x.i + 1}컷 ±${Math.round(x.w / 2)}점`).join(", ")})` : ""}${a.cuts.some(x => x.kind === "none") ? ", 모름 " + a.cuts.filter(x => x.kind === "none").length + "개" : ""} → ${Math.round(0.6 * a.cutPts)}/60점`,
-      `석차: 90% 범위가 보통 응시 인원의 ${Math.round(a.rw * 100)}% → ${Math.round(a.rankPts)}/40점`,
+      `석차: 90% 범위가 보통 응시 인원의 ${Math.round(a.rw * CAL * 100)}% → ${Math.round(a.rankPts)}/40점`,
       "정보가 더 들어오면 올라가요."].join("\n");
     return `<span class="acc ${a.cls}" tabindex="0" data-tip="${esc(tip)}">정확도 <b>${a.score}</b><em>${a.lv}</em></span>`;
   }
@@ -826,6 +854,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         "예상 석차",
         r.lo === r.hi ? `${r.lo}등 확정 (같은 점수인 사람과는 공동 ${r.lo}등)` : `90% 범위: ${r.lo}~${r.hi}등 (10번 중 9번은 이 안)`,
         `범위 폭: 전체 ${r.N}명의 ${Math.round(w * 100)}%`,
+        r.lo === r.hi ? "" : `성적표와 맞춰 보니 계산 범위가 좁아서 ${CAL}배로 넓혔어요`,
         `계산: 사실과 맞는 분포 ${d.rk_models || "여러"}개 × 가상의 반 ${d.rk_sims || 40}개`,
         d.rk_why ? "근거: " + d.rk_why : ""
       ].filter(Boolean).join("\n");
@@ -1404,6 +1433,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           ${d.facts?.length ? `<div class="facts">${d.facts.map(f => `<span>${esc(f)}</span>`).join("")}</div>` : ""}
           ${chartHtml(d)}
           ${d.note ? `<p class="note">${esc(d.note)}</p>` : ""}
+          ${helpHtml(d)}
           ${d.at ? `<p class="rowat">컷 업데이트 ${fmt(d.at, true)}</p>` : ""}
         </div></details>
       </div>`;
