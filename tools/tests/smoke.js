@@ -50,6 +50,8 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel(['물질과 에너지']), 'gradecut-my-scores': scores({ '2026-2mid-chem': '48', '2026-2mid-hwaeon': '73.1' }) } });
     const chem = await rowOf(p, '물질과'), hw = await rowOf(p, '화법과');
     check('화학 48점: 등급 확률 표시', /\d+%\s*\d등급일 확률/.test(await chem.$eval('.gprob', e => e.innerText.replace(/\n/g, ' '))));
+    const q = await (await rowOf(p, '미적분')).$eval('.quota', e => e.innerText.replace(/\s+/g, ' ')).catch(() => '');
+    check('등급별 인원: 227명 → 1등급 1~23등 · 5등급 205~227등', /1등급 1~23등/.test(q) && /2등급 24~77등/.test(q) && /4등급 151~204등/.test(q) && /5등급 205~227등/.test(q), q.slice(0, 120));
     check('화법과 언어 73.1점: 2등급 확정', /2등급\s*확정/.test(await hw.$eval('.gprob', e => e.innerText.replace(/\n/g, ' '))));
     check('확정에도 확률 막대(100%)', (await hw.$$('.gprob .sp-bar i')).length === 5);
     await p.fill('#my-2026-2mid-chem', '150'); await p.press('#my-2026-2mid-chem', 'Enter'); await p.waitForTimeout(150);
