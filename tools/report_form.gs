@@ -46,6 +46,7 @@ function createReportForm() {
     .setTitle("어떤 정보인가요?")
     .setHelpText("해당하는 걸 모두 골라 주세요.")
     .setChoiceValues([
+      "성적표의 내 점수와 석차 (예: 83.9점 52등, 동석차 2명)",
       "등급컷",
       "평균",
       "응시 인원",
@@ -58,7 +59,7 @@ function createReportForm() {
   // 4. 내용
   form.addParagraphTextItem()
     .setTitle("내용")
-    .setHelpText("예: \"2컷 67점\", \"평균 52.3\", \"80점대 11명\", \"선생님이 1컷 80 중후반이라고 하심\"")
+    .setHelpText("예: \"83.9점 52등 (동석차 2명)\", \"2컷 67점\", \"평균 52.3\", \"80점대 11명\", \"선생님이 1컷 80 중후반이라고 하심\". 성적표의 점수와 석차 한 쌍이 석차 예상을 가장 잘 좁혀요.")
     .setRequired(true);
 
   // 5. 출처 (장난 제보 거르기·확정/약한 정보 구분용)

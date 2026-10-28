@@ -356,10 +356,22 @@ def _cmp_prob(m, alo, ahi, blo, bhi, pieces, groups):
     FB, ib = _cmp_parts(blo, bhi, pieces)
     ga = {pieces[i]["g"] for i in ia}
     gb = {pieces[i]["g"] for i in ib}
-    assert len(ga) <= 1 and len(gb) <= 1, "비교 조건의 한쪽은 한 그룹 안에 있어야 함"
     if not ga and not gb:
         return 1.0 if FA > FB else 0.0
     mass = lambda ids: sum(float(m.mass(pieces[i]["lo"], pieces[i]["hi"])) for i in ids)
+    if len(ga) > 1 or len(gb) > 1:
+        # 한쪽이 여러 그룹에 걸치면(점수별 석차를 넣어 구간이 갈라진 경우) 정규 근사:
+        # 인원 차이 D = FA-FB + Σ(그룹별 다항분포 몫의 차)의 평균·분산으로 P(D >= 1)
+        mu, var = FA - FB, 0.0
+        for g in ga | gb:
+            gr = groups[g]; tot = max(mass(gr["idx"]), 1e-300)
+            pa = min(mass([i for i in ia if pieces[i]["g"] == g]) / tot, 1.0)
+            pb = min(mass([i for i in ib if pieces[i]["g"] == g]) / tot, 1.0)
+            mu += gr["total"] * (pa - pb)
+            var += gr["total"] * (pa + pb - (pa - pb) ** 2)
+        if var < 1e-9:
+            return 1.0 if mu > 0.5 else 0.0
+        return float(stats.norm.cdf((mu - 0.5) / math.sqrt(var)))
 
     def part(ids, gset):
         if not gset:
@@ -711,7 +723,7 @@ SPECS = {
                               3.5, 3.4, 2.9, 3.4, 3.1, 4] + [2.0] * 10, top=99.5),
         why="1~3컷 확정 + 평균 + 만점자 수 · 석차는 실제로 나올 수 있는 점수 기준(동점은 같은 등수)", est=[3]),
     "2026-2mid-physics": dict(
-        N=110, counts=[(99.5, 1), (95.8, 2), (90, 6), (80, 17)], mean=51.0,   # 43.7점이 62등(10/29 성적표)은 못 넣음: 40~50점대 비교 조건과 구간이 겹쳐서   # 100점 1명, 95.8점 2등, 90점 이상 6명, 80점대 11명 (인원·평균·2등: 10/28 성적표)
+        N=110, counts=[(99.5, 1), (95.8, 2), (90, 6), (80, 17), (43.7, 62)], mean=51.0,   # 43.7점 62등: 10/29 성적표 (구간이 갈라지는 비교 조건은 정규 근사로 처리)   # 100점 1명, 95.8점 2등, 90점 이상 6명, 80점대 11명 (인원·평균·2등: 10/28 성적표)
         splits=[85, 70, 60, 50, 40], cond_min=[(85, 90, 11, 6)], cond_seg_lo=80,
         # 50점대가 골짜기: 50점대 < 40점대, 50점대 < 60점대 ('평균 50인데 50점대 별로 없음')
         cond_cmp=[(40, 50, 50, 60), (60, 70, 50, 60)],
