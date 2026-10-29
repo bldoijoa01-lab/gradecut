@@ -608,7 +608,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const myScore = id => { const v = okVal(rawOf(id), 0, 100); if (!v) return ""; return scoreIssue(docs.find(x => x.id === id), v) ? "" : v; };
   // 나올 수 없는 점수 걸러내기 (계산에 안 쓰고 빨간 칸으로):
   //  (1) 문항 배점(d.items)의 합으로 만들 수 없는 점수 — 실제 성적표 점수 전부가 이 합으로 만들어짐을 확인함
-  //  (2) 성적표·인원으로 아는 사실(d.known = [점수, 그 점수 이상 인원, 그 점수 학생이 실제로 있는지])과 안 맞는 점수
+  //  (2) 성적표·인원으로 아는 사실(d.known = [점수, 그 점수 이상 인원, 그 점수인 학생 수(동석차 포함)])과 안 맞는 점수
   //      예: 100점 1명, 95.8점 2등이면 95.8점과 100점 사이에는 아무도 없음
   const possCache = {};
   function possibleOf(d) {
@@ -637,7 +637,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       if (!K.some(k => Math.abs(k[0] - v) < 1e-6)) {
         let hi = [100.0001, 0, false], lo = null;
         for (const k of K) { if (k[0] > v) hi = k; else { lo = k; break; } }
-        if (lo && lo[1] - hi[1] - (lo[2] ? 1 : 0) <= 0)
+        if (lo && lo[1] - hi[1] - (+lo[2] || 0) <= 0)
           return `${s}점은 알려진 인원과 안 맞아요: ${lo[0]}점과 ${hi[0] > 100 ? "100" : hi[0]}점 사이에는 아무도 없어요`;
       }
     }
@@ -670,10 +670,39 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   // 보정: 학교 성적표의 점수·석차와 맞춰 봤더니(처음 보는 점수 7개 중 4개만 90% 범위 안) 계산이 만든 범위가 실제보다 좁았음.
   // 석차 범위의 폭을 CAL배로 넓히고(이미 석차를 아는 점수에선 폭이 0이라 그대로), 추정 컷 근처의 등급 확률은 같은 만큼 번지게 함
   const CAL = 1.6;
+  // 확실한 정보(d.known: 성적표 등으로 안 [점수, 그 점수 이상 인원, 그 점수인 학생 수])는 계산에 맡기지 않고 그대로 씀:
+  //  · 그 점수와 똑같으면 학교 석차(= 이상 인원 − 같은 점수 학생 수 + 1)로 고정
+  //  · 알려진 두 점수 사이면 석차는 반드시 [위쪽 점수 이상 인원 + 1, 아래쪽 점수 이상 인원 − 아래쪽 점수 학생 수] 안
+  function fixKnown(d, x, s, wl, wh) {
+    if (!Array.isArray(d.known) || !d.known.length) return;
+    const K = d.known.slice().sort((a, b) => b[0] - a[0]), same = K.find(k => Math.abs(k[0] - x) < 1e-6);
+    if (same && +same[2] > 0) { s.lo = s.mid = s.hi = same[1] - same[2] + 1; return; }
+    // 계산이 낸 석차와 학교 석차의 차이(res)를 확실한 점(그 점수 학생이 있는 것)마다 구해, 점 사이에서는 직선으로 이어 보정하고
+    // 그 점들에서 멀수록(=정보가 없을수록) 계산의 범위 폭을 되살림 (확실한 점에서는 폭 0)
+    const E = [];
+    for (const k of K) if (+k[2] > 0) { const r = simRaw(d, k[0]); if (r) E.push({ sc: k[0], res: (k[1] - k[2] + 1) - r.mid }); }
+    if (E.length) {
+      let up = null, dn = null;
+      for (const e of E) { if (e.sc > x) up = e; else { dn = e; break; } }
+      let res, scale;
+      if (up && dn) { const q = (up.sc - x) / (up.sc - dn.sc); res = up.res + (dn.res - up.res) * q; scale = Math.min(q, 1 - q) * 2; }
+      else { const e = up || dn, dist = Math.abs(e.sc - x); res = e.res * Math.max(0, 1 - dist / 25); scale = Math.min(1, dist / 10); }
+      s.mid = Math.round(s.mid + res);
+      s.lo = Math.round(s.mid - CAL * scale * wl); s.hi = Math.round(s.mid + CAL * scale * wh);
+    }
+    let hi = null, lo = null;
+    for (const k of K) { if (k[0] > x) hi = k; else { lo = k; break; } }
+    const minR = hi ? hi[1] + 1 : 1, maxR = lo ? lo[1] - (+lo[2] || 0) : Infinity;
+    if (maxR < minR) return;
+    s.lo = Math.max(minR, Math.min(maxR, s.lo)); s.hi = Math.max(minR, Math.min(maxR, s.hi)); s.mid = Math.max(minR, Math.min(maxR, s.mid));
+    if (s.lo > s.mid) s.lo = s.mid; if (s.hi < s.mid) s.hi = s.mid;
+  }
   // 시뮬레이션 표(rx 점수 격자마다 등수 5%/50%/95%, 등급 확률 %)에서 x점 값을 보간
   function simAt(d, x) {
     const s = simRaw(d, x); if (!s) return null;
-    s.lo = Math.round(s.mid - CAL * (s.mid - s.lo)); s.hi = Math.round(s.mid + CAL * (s.hi - s.mid));
+    const wl = s.mid - s.lo, wh = s.hi - s.mid;
+    s.lo = Math.round(s.mid - CAL * wl); s.hi = Math.round(s.mid + CAL * wh);
+    fixKnown(d, x, s, wl, wh);
     // 가까이 있는 추정 컷의 90% 범위 폭 w에서, 보정으로 늘어난 불확실성(약 0.38w)만큼 점수를 흔들어 등급 확률을 섞음
     if (s.gp && d.cut_ranges) {
       let w = 0;
