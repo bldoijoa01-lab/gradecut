@@ -68,6 +68,20 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3b. 나올 수 없는 점수: 문항 배점의 합으로 못 만드는 점수, 알려진 인원과 안 맞는 점수
+  {
+    const p = await open(b, { store: { 'gradecut-my-electives': sel(['물질과 에너지', '역학과 에너지']), 'gradecut-my-scores': scores({ '2026-2mid-chem': '52.1', '2026-2mid-physics': '96.3', '2026-2mid-calc': '94.5' }) } });
+    const bad = id => p.$eval(`#my-${id}`, e => e.classList.contains('bad'));
+    const msg = async name => (await (await rowOf(p, name)).$eval('.badmsg', e => e.textContent).catch(() => ''));
+    check('물질과 에너지 52.1점: 배점으로 못 만드는 점수는 빨간 칸', await bad('2026-2mid-chem') && /나올 수 없는 점수/.test(await msg('물질과')) && /52 · 52\.5/.test(await msg('물질과')), await msg('물질과'));
+    check('역학과 에너지 96.3점: 100점 1명·95.8점 2등이면 그 사이는 없음', await bad('2026-2mid-physics') && /95\.8점과 99\.5점 사이에는 아무도 없어요/.test(await msg('역학')), await msg('역학'));
+    check('미적분I 94.5점(실제 점수)은 그대로 통과', !(await bad('2026-2mid-calc')));
+    check('나올 수 없는 점수는 계산에 안 씀(요약에 없음)', await p.$eval('#summary', e => e.hidden || !/물질|역학/.test(e.innerText)));
+    await p.fill('#my-2026-2mid-physics', '95.8'); await p.press('#my-2026-2mid-physics', 'Enter'); await p.waitForTimeout(300);
+    check('역학과 에너지 95.8점(실제 2등 점수)은 통과', !(await bad('2026-2mid-physics')));
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });

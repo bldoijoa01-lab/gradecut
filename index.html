@@ -493,6 +493,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         <p>5등급제 기준 · 1컷 상위 10% · 2컷 34% · 3컷 66% · 4컷 90%</p>
         <p>오송고등학교 2학년 시험 기준이에요. 다른 학교나 다른 학년의 등급컷과는 달라요.</p>
         <p>각 과목의 '내 점수' 칸에 점수를 입력하면 내 등급과 평균이 계산돼요. 점수는 이 기기의 브라우저에만 저장되고, 아무에게도 전송되지 않아요.</p>
+        <p>문항 배점의 합으로 만들 수 없는 점수나, 이미 알려진 인원과 안 맞는 점수(예: 100점 1명·95.8점 2등이면 그 사이)는 빨간 칸으로 알려 주고 계산에 안 써요. 성적표의 '받은점수'(소수점 있는 값)를 그대로 넣어 주세요. 부분점수 때문에 맞는 점수가 막히면 제보해 주세요.</p>
       </div></details></div>
   </header>
 
@@ -604,11 +605,48 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   };
   const okVal = (v, lo, hi) => badNum(v, lo, hi) ? "" : String(v ?? "").trim();
   const rawOf = id => scores[id]?.my || "";
-  const myScore = id => okVal(rawOf(id), 0, 100);
-  // 입력칸: 범위(data-lo/hi)를 달아 두고, 잘못된 값이면 빨간 테두리 + 안내
-  const numIn = (attrs, raw, lo, hi, unit) => {
-    const bad = badNum(raw, lo, hi);
-    return `<input class="myin${bad ? " bad" : ""}" ${attrs} data-lo="${lo}" data-hi="${hi}" data-unit="${unit}" value="${esc(raw)}"${bad ? ` aria-invalid="true"` : ""}>${bad ? `<small class="badmsg">${rangeMsg(lo, hi, unit)}</small>` : ""}`;
+  const myScore = id => { const v = okVal(rawOf(id), 0, 100); if (!v) return ""; return scoreIssue(docs.find(x => x.id === id), v) ? "" : v; };
+  // 나올 수 없는 점수 걸러내기 (계산에 안 쓰고 빨간 칸으로):
+  //  (1) 문항 배점(d.items)의 합으로 만들 수 없는 점수 — 실제 성적표 점수 전부가 이 합으로 만들어짐을 확인함
+  //  (2) 성적표·인원으로 아는 사실(d.known = [점수, 그 점수 이상 인원, 그 점수 학생이 실제로 있는지])과 안 맞는 점수
+  //      예: 100점 1명, 95.8점 2등이면 95.8점과 100점 사이에는 아무도 없음
+  const possCache = {};
+  function possibleOf(d) {
+    if (!Array.isArray(d.items) || !d.items.length) return null;
+    if (possCache[d.id]) return possCache[d.id];
+    const w = d.items.map(v => Math.round(v * 10)), tot = w.reduce((a, b) => a + b, 0), ok = new Uint8Array(tot + 1); ok[0] = 1;
+    for (const x of w) for (let t = tot; t >= x; t--) if (ok[t - x]) ok[t] = 1;
+    return possCache[d.id] = ok;
+  }
+  function scoreIssue(d, raw) {
+    const s = String(raw ?? "").trim();
+    if (!d || !s || badNum(s, 0, 100)) return "";
+    const v = parseFloat(s), ok = possibleOf(d);
+    if (ok) {
+      const t = Math.round(v * 10);
+      if (Math.abs(v * 10 - t) > 1e-6 || t >= ok.length || !ok[t]) {
+        let lo = Math.min(Math.floor(v * 10 + 1e-6), ok.length - 1), hi = Math.max(Math.ceil(v * 10 - 1e-6), 0);
+        while (lo >= 0 && !ok[lo]) lo--;
+        while (hi < ok.length && !ok[hi]) hi++;
+        const near = [lo >= 0 ? lo / 10 : null, hi < ok.length ? hi / 10 : null].filter(x => x !== null).join(" · ");
+        return `${s}점은 나올 수 없는 점수예요(문항 배점 기준). 성적표의 '받은점수'를 그대로 넣어 주세요${near ? " · 가까운 점수 " + near : ""}`;
+      }
+    }
+    if (Array.isArray(d.known) && d.known.length) {
+      const K = d.known.slice().sort((a, b) => b[0] - a[0]);
+      if (!K.some(k => Math.abs(k[0] - v) < 1e-6)) {
+        let hi = [100.0001, 0, false], lo = null;
+        for (const k of K) { if (k[0] > v) hi = k; else { lo = k; break; } }
+        if (lo && lo[1] - hi[1] - (lo[2] ? 1 : 0) <= 0)
+          return `${s}점은 알려진 인원과 안 맞아요: ${lo[0]}점과 ${hi[0] > 100 ? "100" : hi[0]}점 사이에는 아무도 없어요`;
+      }
+    }
+    return "";
+  }
+  // 입력칸: 범위(data-lo/hi)를 달아 두고, 잘못된 값이면 빨간 테두리 + 안내 (issue: 범위는 맞지만 나올 수 없는 점수일 때의 안내)
+  const numIn = (attrs, raw, lo, hi, unit, issue = "") => {
+    const range = badNum(raw, lo, hi), bad = range || !!issue;
+    return `<input class="myin${bad ? " bad" : ""}" ${attrs} data-lo="${lo}" data-hi="${hi}" data-unit="${unit}" value="${esc(raw)}"${bad ? ` aria-invalid="true"` : ""}>${bad ? `<small class="badmsg">${range ? rangeMsg(lo, hi, unit) : esc(issue)}</small>` : ""}`;
   };
   const rangeMsg = (lo, hi, unit) => `${lo}~${hi}${unit} 사이로 넣어 주세요`;
   const esc = s => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -1379,7 +1417,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           <button class="tbtn" type="button" id="saveSem"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>기말 예상 이미지로 저장</button>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
         + rows.map((d, ri) => {
-          const midIn = `<label>중간 점수${numIn(`data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력"`, rawOf(d.id), 0, 100, "점")}</label>`;
+          const midIn = `<label>중간 점수${numIn(`data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력"`, rawOf(d.id), 0, 100, "점", scoreIssue(d, rawOf(d.id)))}</label>`;
           const fk = semMode === "rank" ? semrKey(d) : semKey(d);
           const N = parseInt(d.n) || 999;
           const finIn = semMode === "rank"
@@ -1408,7 +1446,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           : `<b>${esc(p.raw)}</b>`) : `<b class="none">—</b>`}</div>`;
       }).join("");
       const myP = parse(d.my);
-      const me = `<div class="cell me"><i>내 점수</i>${numIn(`id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수"`, rawOf(d.id), 0, 100, "점")}${rankHtml(d)}</div>`;
+      const me = `<div class="cell me"><i>내 점수</i>${numIn(`id="my-${esc(d.id)}" data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력" aria-label="${esc(d.subject)} 내 점수"`, rawOf(d.id), 0, 100, "점", scoreIssue(d, rawOf(d.id)))}${rankHtml(d)}</div>`;
       const ticks = [0, 1, 2, 3].map(i => {
         const p = parse(cuts[i]); if (!p) return "";
         const r = p.unsure && d.cut_ranges && d.cut_ranges[i + 1], cl = x => Math.max(0, Math.min(100, x));
@@ -1446,8 +1484,9 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const body = prev.g && prev.my === val ? { my: val, g: prev.g } : { my: val };
     if (!val) delete scores[id]; else scores[id] = body;
     const ok = saveLocal(), el = document.querySelector(`[data-score="${CSS.escape(id)}"][data-lo]`);
-    const bad = el && badNum(val, +el.dataset.lo, +el.dataset.hi);
+    const bad = el && badNum(val, +el.dataset.lo, +el.dataset.hi), issue = !bad && docs.some(x => x.id === id) ? scoreIssue(docs.find(x => x.id === id), val) : "";
     $("status").textContent = bad ? rangeMsg(el.dataset.lo, el.dataset.hi, el.dataset.unit) + ". 이 값은 계산에 안 써요."
+      : issue ? issue + ". 이 값은 계산에 안 써요."
       : ok ? "내 점수를 이 브라우저에 저장했어요." : "이 브라우저에서는 저장이 안 돼요. 새로고침하면 사라져요.";
   }
 
