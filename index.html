@@ -608,7 +608,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   const myScore = id => { const v = okVal(rawOf(id), 0, 100); if (!v) return ""; return scoreIssue(docs.find(x => x.id === id), v) ? "" : v; };
   // 나올 수 없는 점수 걸러내기 (계산에 안 쓰고 빨간 칸으로):
   //  (1) 문항 배점(d.items)의 합으로 만들 수 없는 점수 — 실제 성적표 점수 전부가 이 합으로 만들어짐을 확인함
-  //  (2) 성적표·인원으로 아는 사실(d.known = [점수, 그 점수 이상 인원, 그 점수 학생이 실제로 있는지])과 안 맞는 점수
+  //  (2) 성적표·인원으로 아는 사실(d.known = [점수, 그 점수 이상 인원, 그 점수인 학생 수(동석차 포함)])과 안 맞는 점수
   //      예: 100점 1명, 95.8점 2등이면 95.8점과 100점 사이에는 아무도 없음
   const possCache = {};
   function possibleOf(d) {
@@ -637,7 +637,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       if (!K.some(k => Math.abs(k[0] - v) < 1e-6)) {
         let hi = [100.0001, 0, false], lo = null;
         for (const k of K) { if (k[0] > v) hi = k; else { lo = k; break; } }
-        if (lo && lo[1] - hi[1] - (lo[2] ? 1 : 0) <= 0)
+        if (lo && lo[1] - hi[1] - (+lo[2] || 0) <= 0)
           return `${s}점은 알려진 인원과 안 맞아요: ${lo[0]}점과 ${hi[0] > 100 ? "100" : hi[0]}점 사이에는 아무도 없어요`;
       }
     }
