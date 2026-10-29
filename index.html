@@ -670,10 +670,25 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
   // 보정: 학교 성적표의 점수·석차와 맞춰 봤더니(처음 보는 점수 7개 중 4개만 90% 범위 안) 계산이 만든 범위가 실제보다 좁았음.
   // 석차 범위의 폭을 CAL배로 넓히고(이미 석차를 아는 점수에선 폭이 0이라 그대로), 추정 컷 근처의 등급 확률은 같은 만큼 번지게 함
   const CAL = 1.6;
+  // 확실한 정보(d.known: 성적표 등으로 안 [점수, 그 점수 이상 인원, 그 점수인 학생 수])는 계산에 맡기지 않고 그대로 씀:
+  //  · 그 점수와 똑같으면 학교 석차(= 이상 인원 − 같은 점수 학생 수 + 1)로 고정
+  //  · 알려진 두 점수 사이면 석차는 반드시 [위쪽 점수 이상 인원 + 1, 아래쪽 점수 이상 인원 − 아래쪽 점수 학생 수] 안
+  function fixKnown(d, x, s) {
+    if (!Array.isArray(d.known) || !d.known.length) return;
+    const K = d.known.slice().sort((a, b) => b[0] - a[0]), same = K.find(k => Math.abs(k[0] - x) < 1e-6);
+    if (same && +same[2] > 0) { s.lo = s.mid = s.hi = same[1] - same[2] + 1; return; }
+    let hi = null, lo = null;
+    for (const k of K) { if (k[0] > x) hi = k; else { lo = k; break; } }
+    const minR = hi ? hi[1] + 1 : 1, maxR = lo ? lo[1] - (+lo[2] || 0) : Infinity;
+    if (maxR < minR) return;
+    s.lo = Math.max(minR, Math.min(maxR, s.lo)); s.hi = Math.max(minR, Math.min(maxR, s.hi)); s.mid = Math.max(minR, Math.min(maxR, s.mid));
+    if (s.lo > s.mid) s.lo = s.mid; if (s.hi < s.mid) s.hi = s.mid;
+  }
   // 시뮬레이션 표(rx 점수 격자마다 등수 5%/50%/95%, 등급 확률 %)에서 x점 값을 보간
   function simAt(d, x) {
     const s = simRaw(d, x); if (!s) return null;
     s.lo = Math.round(s.mid - CAL * (s.mid - s.lo)); s.hi = Math.round(s.mid + CAL * (s.hi - s.mid));
+    fixKnown(d, x, s);
     // 가까이 있는 추정 컷의 90% 범위 폭 w에서, 보정으로 늘어난 불확실성(약 0.38w)만큼 점수를 흔들어 등급 확률을 섞음
     if (s.gp && d.cut_ranges) {
       let w = 0;

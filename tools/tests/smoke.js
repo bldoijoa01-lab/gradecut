@@ -82,6 +82,16 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3c. 성적표로 확실히 아는 점수는 학교 석차 그대로 (계산에 안 맡김): 동석차 있어도 학교 표시와 같게
+  {
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel(['물질과 에너지', '세포와 물질대사']), 'gradecut-my-scores': scores({ '2026-2mid-chem': '95', '2026-2mid-english': '83.9', '2026-2mid-bio': '96.8', '2026-2mid-calc': '94.5' }) } });
+    const rk = async name => (await (await rowOf(p, name)).$eval('.rk', e => e.innerText.replace(/\s+/g, ' ')));
+    const r1 = await rk('물질과'), r2 = await rk('영어'), r3 = await rk('세포'), r4 = await rk('미적분');
+    check('확실한 석차: 물질과 에너지 95.0점 = 12등, 영어 83.9점 = 52등', /^12등/.test(r1) && /^52등/.test(r2), r1 + ' | ' + r2);
+    check('확실한 석차: 세포와 물질대사 96.8점 = 4등(동석차 2), 미적분I 94.5점 = 8등(동석차 3)', /^4등/.test(r3) && /^8등/.test(r4), r3 + ' | ' + r4);
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });
