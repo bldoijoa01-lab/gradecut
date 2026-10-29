@@ -720,7 +720,7 @@ SPECS = {
         known=[(99.5, 1, False), (96.8, 5, True), (69.1, 51, True)],   # 96.8점 4(2)
         N=96, cuts=[(94.8, .10), (81.6, .34), (64.3, .66)],
         counts=[(99.5, 1), (96.8, 4), (69.1, 51)], mean=69.8,   # 인원·평균·96.8점 4등: 10/28 성적표
-        # 실제 배점: 선택형 24문항(80점) + 단답형 5문항(각 4점 = 2점짜리 두 부분, 부분점수)
+        # 실제 배점: 선택형 24문항(80점) + 단답형 5문항(각 4점 = 2점짜리 두 부분; 부분점수는 2점 단위로 어느 문항에서든 붙음 — 10/29 확인)
         #   [2.9, 3, 3.1, 3.3, 3.2, 3.6, 3.5, 3.6, 3.8, 2.9, 3.3, 3.7, 4, 3.4, 3.1, 3, 3, 3.3,
         #    3.5, 3.4, 2.9, 3.4, 3.1, 4] + [2.0] * 10
         # 문항 배점 모형(itm/itm2)으로 숨긴 컷 맞히기 → 2/3(평균 오차 3.1점, 1컷 94.8을 91.5로 예측해 범위 밖)
@@ -801,7 +801,7 @@ def write_meta(data):
     """사이트가 불가능한 점수를 걸러 내는 데 쓰는 값만 갱신 (MCMC 안 돌림):
     items = 문항 배점(합 100) → 그 합으로 만들 수 있는 점수만 가능, known = [점수, 그 점수 이상 인원, 그 점수 학생이 실제로 있는지]"""
     for sid, spec in SPECS.items():
-        items = spec.get("items") or (spec.get("discrete") or {}).get("values") or (spec.get("mcq") or {}).get("values")
+        items = None if spec.get("no_items") else (spec.get("items") or (spec.get("discrete") or {}).get("values") or (spec.get("mcq") or {}).get("values"))
         for d in data["subjects"]:
             if d["id"] != sid:
                 continue
