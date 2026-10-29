@@ -45,7 +45,10 @@ FAMILIES = {
     # 문항별 배점만 반영 (어려운 문항 정보 없음)
     "itm": dict(lo=[0.1, 0.1], hi=[80, 80]),
     "itm2": dict(lo=[0.05, 0.1, 0.1, 0.1, 0.1], hi=[0.95, 80, 80, 80, 80]),
+    # 스플라인: 밀도의 로그를 9개 점(0, 12.5, ..., 100점)에서 정하고 부드럽게 이음 → 모양을 거의 제한하지 않음
+    "spl": dict(lo=[-12.0] * 9, hi=[12.0] * 9),
 }
+SPL_X = np.linspace(0, 100, 9)
 _IRT = {}   # 미리 계산한 성분(어려운 문항 조합 × 일반 문항 틀린 개수)별 누적분포
 
 
@@ -130,6 +133,12 @@ def raw_cdf(fam, th, x):
     if fam == "mix2":
         w, m1, s1, m2, s2 = th
         return w * special.ndtr((x - m1) / s1) + (1 - w) * special.ndtr((x - m2) / s2)
+    if fam == "spl":
+        from scipy.interpolate import CubicSpline
+        ld = CubicSpline(SPL_X, np.asarray(th, float), bc_type="natural")(x)
+        d = np.exp(np.clip(ld - ld.max(), -40, 0))
+        c = np.concatenate([[0.0], np.cumsum((d[1:] + d[:-1]) / 2 * np.diff(x))])
+        return c
     if fam == "mcq":
         return _mcq_cdf(_bb_pmf(CTX["n"], th[0], th[1]), x)
     if fam == "mcq2":
@@ -164,12 +173,24 @@ class Model:
             self.sd = float(math.sqrt(max(np.sum(pdf * mids ** 2) - self.mean ** 2, 1e-9)))
             self.dens = pdf / (FINE[1] - FINE[0])
             self.mids = mids
+            self.M1 = np.concatenate([[0.0], np.cumsum(pdf * mids)])          # ∫ x f(x) dx 의 누적 (FINE 격자 위)
+            self.M2 = np.concatenate([[0.0], np.cumsum(pdf * mids ** 2)])
 
     def F(self, x):                       # 잘린 분포의 누적확률 P(S < x)
         return np.interp(x, FINE, self.cdf)
 
     def mass(self, lo, hi):
         return np.maximum(self.F(hi) - self.F(lo), 0.0)
+
+    def seg(self, lo, hi):
+        """[lo, hi) 안의 (확률질량, 평균, 분산) — 그 구간에 속한 학생들 점수의 모양."""
+        lo, hi = min(max(lo, 0.0), 100.0), min(max(hi, 0.0), 100.0)
+        ms = float(self.F(hi) - self.F(lo))
+        if ms < 1e-12:
+            return 0.0, (lo + hi) / 2, 0.0
+        m1 = float(np.interp(hi, FINE, self.M1) - np.interp(lo, FINE, self.M1)) / ms
+        m2 = float(np.interp(hi, FINE, self.M2) - np.interp(lo, FINE, self.M2)) / ms
+        return ms, m1, max(m2 - m1 * m1, 0.0)
 
     def inv(self, p):                     # 누적확률 → 점수
         return np.interp(p, self.cdf, FINE)
@@ -314,11 +335,14 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
     m = Model(fam, th)
     if not m.ok:
         return -np.inf
+    L = 0.0
+    if fam == "spl":     # 부드러움(이웃 점과의 2차 차분)과 전체 높이 고정(모양에 영향 없는 자유도)
+        t = np.asarray(th, float)
+        L += -0.5 * float(np.sum((t[2:] - 2 * t[1:-1] + t[:-2]) ** 2)) / SPL_TAU ** 2 - 0.5 * (float(t.mean()) / 0.05) ** 2
     if spec.get("bimodal") and not m.bimodal():
         return -np.inf
     if spec.get("peaks") and not m.peaks_in(spec["peaks"]):
         return -np.inf
-    L = 0.0
     for p in pieces:                                      # 고정 인원 구간
         if p["g"] is None and p["n"]:
             L += p["n"] * math.log(max(float(m.mass(p["lo"], p["hi"])), 1e-300))
@@ -327,8 +351,11 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
             pm = sum(float(m.mass(pieces[i]["lo"], pieces[i]["hi"])) for i in g["idx"])
             L += g["total"] * math.log(max(pm, 1e-300))
     if "mean" in spec:                                    # 평균
-        se = m.sd / math.sqrt(N)
-        L += -0.5 * ((m.mean - spec["mean"]) / se) ** 2 - math.log(se)
+        if COND_MEAN:
+            L += _mean_ll(m, spec["mean"], N, pieces, groups)
+        else:
+            se = m.sd / math.sqrt(N)
+            L += -0.5 * ((m.mean - spec["mean"]) / se) ** 2 - math.log(se)
     for q, v, sd in spec.get("soft", []):                 # 애매한 컷 (예: '48?')
         L += -0.5 * ((m.top_quantile(q) - v) / sd) ** 2
     for c in spec.get("cond_min", []):                    # 예: 80점대 11명 중 85점 이상 ≥ 6
@@ -343,6 +370,35 @@ def loglik(spec, fam, th, N, anchors, pieces, groups):
     for alo, ahi, blo, bhi in spec.get("cond_cmp", []):   # 예: 90점대 인원 > 80점대 인원
         L += math.log(max(_cmp_prob(m, alo, ahi, blo, bhi, pieces, groups), 1e-300))
     return L
+
+
+COND_MEAN = True
+WEIGHTED = True
+SPL_TAU = 1.5     # 스플라인 부드러움 정도(작을수록 매끈): 이웃 세 점의 2차 차분 표준편차
+
+
+def _mean_ll(m, mean_obs, N, pieces, groups):
+    """평균의 우도. 반 전체는 정확히 N명이고 구간별 인원을 이미 아는 만큼 평균도 거의 정해져 있으므로,
+    '알려진 인원을 지킨 반'의 평균(구간 안 점수 모양에서만 흔들림)과 비교한다.
+    (예전엔 평균을 '분포에서 N명을 새로 뽑은 평균' 오차 sd/√N 로 봤는데, 구간 인원을 다 알면 그보다 훨씬 좁게 정해짐)"""
+    tot = 0.0; var = 0.0
+    for p in pieces:
+        if p["g"] is None and p["n"]:
+            ms, mu, v = m.seg(p["lo"], p["hi"])
+            tot += p["n"] * mu; var += p["n"] * v
+    for g in groups:
+        if not g["total"]:
+            continue
+        s0 = s1 = s2 = 0.0
+        for i in g["idx"]:
+            ms, mu, v = m.seg(pieces[i]["lo"], pieces[i]["hi"])
+            s0 += ms; s1 += ms * mu; s2 += ms * (v + mu * mu)
+        if s0 < 1e-12:
+            return -np.inf
+        mg = s1 / s0
+        tot += g["total"] * mg; var += g["total"] * max(s2 / s0 - mg * mg, 0.0)
+    sd = math.sqrt(var / N ** 2 + 0.05 ** 2)               # 소수 첫째 자리 반올림(±0.05)까지
+    return -0.5 * ((tot / N - mean_obs) / sd) ** 2 - math.log(sd)
 
 
 def c_lo(spec, a):
@@ -492,7 +548,14 @@ def posterior(spec, quiet=False, iters=6000):
     kept = [r for r in res if r["best"] >= top - 3.0]
     if not quiet:
         print("    kept families:", [r["fam"] for r in kept])
-    members = [(r["fam"], th) for r in kept for th in r["th"]]
+    if WEIGHTED:   # 모양마다 비중 = exp(최대 로그우도 차이): 3 낮으면 5%
+        w = np.array([math.exp(r["best"] - top) for r in kept]); w = w / w.sum()
+        members = []
+        for r, wi in zip(kept, w):
+            k = min(len(r["th"]), max(10, int(round(300 * len(kept) * wi))))
+            members += [(r["fam"], th) for th in r["th"][:k]]
+    else:
+        members = [(r["fam"], th) for r in kept for th in r["th"]]
     return members, [r["fam"] for r in kept]
 
 
