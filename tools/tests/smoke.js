@@ -92,6 +92,22 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3d. 화법과 언어: 수행에서 감점된 다른 학생(자수)을 입력하면 기말 계산기(학기말 등급 목표)에 반영
+  {
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel([]), 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '62' }) } });
+    await p.click('.chip.soon'); await p.waitForSelector('.sem'); await p.waitForTimeout(700);
+    const need = async () => { const t = await p.evaluate(() => [...document.querySelectorAll('.row')].find(e => e.innerText.includes('화법')).querySelector('.need .nb').innerText); return +(t.match(/약\s*(\d+)등/) || [])[1]; };
+    check('기말 계산기: 화법과 언어에만 수행 감점 입력칸(과목 하나)', (await p.$$('.penbox')).length === 1);
+    const n0 = await need();
+    await p.fill('[data-score="pen-2026-2mid-hwaeon"]', '15'); await p.press('[data-score="pen-2026-2mid-hwaeon"]', 'Enter'); await p.waitForTimeout(900);
+    const n1 = await need();
+    check('수행 감점 15점(100명) 넣으면 1등급에 필요한 기말 등수가 느슨해짐', n1 > n0, `${n0}등 → ${n1}등`);
+    check('감점 반영 표시', /다른 학생 100명 수행 15점 감점 반영/.test(await p.$eval('.sem-h small', e => e.innerText)));
+    await p.fill('[data-score="pen-2026-2mid-hwaeon"]', '60'); await p.press('[data-score="pen-2026-2mid-hwaeon"]', 'Enter'); await p.waitForTimeout(300);
+    check('수행 감점 60점은 빨간 칸(50점 만점)', await p.$eval('[data-score="pen-2026-2mid-hwaeon"]', e => e.classList.contains('bad')));
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });
