@@ -144,7 +144,11 @@ def make_class(model, N, rng, rho, dx, k, perf=(50, 0)):
     z1 = rng.standard_normal(N); z3 = rng.standard_normal(N)
     X = inv(Phi(z1)); Y = inv(Phi(rho * z1 + math.sqrt(1 - rho * rho) * z3))
     F = np.clip(model.mu + k * (Y - model.mu) + dx, 0, 100)
-    P = np.clip(rng.normal(perf[0], perf[1], N), 0, 50) if perf[1] > 0 else np.full(N, float(perf[0]))
+    if perf[0] == 'bottom':      # ('bottom', 비율, 평균, 표준편차): 중간+기말 합이 아래쪽 비율인 학생만 수행이 깎임, 나머지는 만점
+        base = X + F; thr = np.quantile(base, perf[1])
+        P = np.where(base <= thr, np.clip(rng.normal(perf[2], perf[3], N), 0, 50), 50.0)
+    else:
+        P = np.clip(rng.normal(perf[0], perf[1], N), 0, 50) if perf[1] > 0 else np.full(N, float(perf[0]))
     T = X + F + 4 * (P - 50)
     rank_sem = 1 + (T[None, :] > T[:, None]).sum(axis=1)
     rank_fin = 1 + (F[None, :] > F[:, None]).sum(axis=1)
@@ -189,6 +193,10 @@ SCEN = [
     ('다른 학생 수행이 약간 깎임 (평균 48, 표준편차 2)', (0.8, 0, 1.0, (48, 2))),
     ('다른 학생 수행이 많이 깎임 (평균 45, 표준편차 4)', (0.8, 0, 1.0, (45, 4))),
     ('다른 학생 수행이 크게 깎임 (평균 42, 표준편차 6)', (0.8, 0, 1.0, (42, 6))),
+    # 실제에 가까운 경우: 수행은 대부분 만점이고 감점은 하위권만
+    ('하위 20%만 수행 깎임 (평균 42, 표준편차 6)', (0.8, 0, 1.0, ('bottom', 0.2, 42, 6))),
+    ('하위 30%만 수행 깎임 (평균 44, 표준편차 6)', (0.8, 0, 1.0, ('bottom', 0.3, 44, 6))),
+    ('하위 40%만 수행 크게 깎임 (평균 38, 표준편차 8)', (0.8, 0, 1.0, ('bottom', 0.4, 38, 8))),
 ]
 
 
@@ -196,6 +204,7 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--subject', default='2026-2mid-calc')
     ap.add_argument('--classes', type=int, default=30)
+    ap.add_argument('--only', type=int, default=0, help='시나리오 번호 이 이후만 (0부터)')
     ap.add_argument('--compare-js', nargs=2, type=float, metavar=('MID', 'FINAL'))
     a = ap.parse_args()
     n, N = load_bins(a.subject)
@@ -211,6 +220,6 @@ if __name__ == '__main__':
         print(f'\n== {a.subject} N={N}, 가상의 반 {a.classes}개 × {N}명, {label}')
         print(f'{"시나리오":52s} {"1등급이내":>14s} {"2등급이내":>14s} {"3등급이내":>14s}  브라이어')
         print(f'{"":52s} {"치우침/ECE":>14s} {"치우침/ECE":>14s} {"치우침/ECE":>14s}')
-        for name, truth in SCEN:
+        for name, truth in SCEN[a.only:]:
             res, br = evaluate(M, N, rng, a.classes, truth, mode)
             print(f'{name:52s} ' + ' '.join(f'{b:+6.3f}/{e:5.3f}'.rjust(14) for b, e in res) + f'  {br:.4f}', flush=True)
