@@ -108,6 +108,15 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3e. 아깝다!/턱걸이: 확정 컷 기준으로 다음 등급까지 모자란 점수, 지금 등급 컷에서 아슬아슬한 점수
+  {
+    const p = await open(b, { store: { 'gradecut-my-electives': sel(['물질과 에너지']), 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '74.6', '2026-2mid-english': '76.5', '2026-2mid-chem': '95.5' }) } });
+    const near = await p.$eval('.sum-near', e => e.innerText.replace(/\s+/g, ' ')).catch(() => '');
+    check('아깝다!: 화법과 언어 74.6점 → 1등급까지 0.4점', /화법과 언어 1등급까지 0\.4점/.test(near), near);
+    check('턱걸이: 영어 76.5점(2컷 76.2) → 2등급 컷 +0.3점', /영어II 2등급 컷 \+0\.3점/.test(near), near);
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });
