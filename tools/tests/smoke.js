@@ -117,6 +117,21 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3f. 작전표: 목표 평균 등급 → 과목별 기말 목표 등수와 효율 순서
+  {
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel([]), 'gradecut-my-scores': scores({ '2026-2mid-calc': '79.1', '2026-2mid-english': '76.5', '2026-2mid-hwaeon': '62' }) } });
+    await p.click('.chip.soon'); await p.waitForSelector('.plan'); await p.waitForTimeout(500);
+    check('작전표: 처음엔 안내만(결과 없음)', (await p.$$('.plan-tbl')).length === 0);
+    await p.fill('[data-score="plan-t"]', '1.9'); await p.press('[data-score="plan-t"]', 'Enter'); await p.waitForTimeout(200);
+    await p.click('#planGo'); await p.waitForSelector('.plan-tbl', { timeout: 60000 });
+    const txt = await p.$eval('.plan', e => e.innerText.replace(/\s+/g, ' '));
+    check('작전표: 과목 3개의 기말 목표와 달성 확률', (await p.$$('.plan-tbl .pr')).length === 3 && /목표 평균 1\.90 이하/.test(txt) && /\d+%/.test(txt), txt.slice(0, 160));
+    check('작전표: 효율 순서에 3과목', (await p.$$('.plan-eff > div')).length === 3);
+    await p.fill('[data-score="plan-t"]', '2.5'); await p.press('[data-score="plan-t"]', 'Enter'); await p.waitForTimeout(400);
+    check('작전표: 목표를 바꾸면 이전 결과 대신 다시 짜라고 안내', (await p.$$('.plan-tbl')).length === 0 && /다시 짜 주세요/.test(await p.$eval('.plan', e => e.innerText)));
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });
@@ -135,7 +150,7 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     const p = await open(b, { store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-calc': '80' }) } });
     check('기말 배너 보임', await p.$eval('#promo', e => !e.hidden));
     await p.click('#promo [data-goexam]'); await p.waitForSelector('.sem');
-    const R = '.row:nth-of-type(2)';
+    const R = '.row:nth-of-type(3)';   // 기말 탭: soonhead(1) · 작전표(2) 다음이 첫 과목 행
     check('기말 탭: 학기말 확률', /학기말 1등급 확률/.test(await p.$eval(`${R} .sp`, e => e.innerText)));
     const cm0 = await p.$eval(`${R} .sp-cmt`, e => e.innerText.trim());
     await p.$eval(`${R} .semrange`, e => { e.value = 1; e.dispatchEvent(new Event('input', { bubbles: true })); }); await p.waitForTimeout(300);
