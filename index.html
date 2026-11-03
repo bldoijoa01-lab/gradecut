@@ -74,6 +74,12 @@ h1 span{color:var(--omr)}
 .tile .tp{font-family:var(--sans);font-size:.7rem;font-weight:700;padding:1px 8px;border-radius:999px;color:var(--omr);background:color-mix(in srgb,var(--omr) 10%,var(--surface));font-variant-numeric:tabular-nums}
 .tile .tp.lo{color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,var(--surface))}
 .tile .tp.sure{color:var(--ok);background:color-mix(in srgb,var(--ok) 13%,var(--surface))}
+.sum-near{display:flex;flex-direction:column;gap:6px}
+.sum-near>div{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sum-near b{font-size:.76rem;color:var(--muted);min-width:3.6em}
+.sum-near span{font-size:.8rem;padding:3px 10px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink)}
+.sum-near .nm{background:var(--omr-soft);border-color:color-mix(in srgb,var(--omr) 30%,transparent)}
+.sum-near i{font-style:normal;font-family:var(--mono);font-weight:700;color:var(--omr)}
 .sum-rng{margin:0;font-size:.82rem}
 .sum-rng b{font-family:var(--mono);color:var(--omr);font-size:1.05em}
 .sum-rng small{display:block;color:var(--muted);font-size:.72rem}
@@ -810,6 +816,26 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     return [out[Math.floor(K * 0.05)], out[Math.floor(K * 0.95)]];
   }
 
+  // 아깝다!/턱걸이: 확정 컷 기준으로 다음 등급까지 얼마 모자란지(3점 이내), 지금 등급 컷에서 얼마나 아슬아슬한지(1.5점 이내)
+  function nearCalls(items) {
+    const miss = [], edge = [];
+    for (const { d, m } of items) {
+      const cuts = [0, 1, 2, 3].map(i => { const v = String((d.c || [])[i] || ""); const p = parse(v); return p && { ...p, sure: !p.unsure && !/[x↑?]/.test(v) }; });
+      if (!cuts[0]) continue;
+      let cg = 0;
+      for (let i = 0; i < 4; i++) { if (!cuts[i]) break; if (m.n >= cuts[i].n) { cg = i + 1; break; } }
+      if (!cg) { if (!cuts[3]) continue; cg = 5; }
+      const name = d.alias || d.subject;
+      if (cg > 1 && cuts[cg - 2].sure) { const gap = cuts[cg - 2].n - m.n; if (gap > 0 && gap <= 3) miss.push({ name, gap, to: cg - 1 }); }
+      if (cg <= 4 && cuts[cg - 1].sure) { const mg = m.n - cuts[cg - 1].n; if (mg >= 0 && mg <= 1.5) edge.push({ name, mg, g: cg }); }
+    }
+    miss.sort((a, b) => a.gap - b.gap); edge.sort((a, b) => a.mg - b.mg);
+    if (!miss.length && !edge.length) return "";
+    const f = x => esc(num(x));
+    return `<div class="sum-near">${miss.length ? `<div><b>아깝다!</b>${miss.slice(0, 3).map(x => `<span class="nm">🥲 ${esc(x.name)} ${x.to}등급까지 <i>${f(x.gap)}점</i></span>`).join("")}</div>` : ""}
+      ${edge.length ? `<div><b>턱걸이</b>${edge.slice(0, 3).map(x => `<span class="ne">😅 ${esc(x.name)} ${x.g}등급 컷 <i>+${f(x.mg)}점</i></span>`).join("")}</div>` : ""}</div>`;
+  }
+
   function summaryHtml(rows) {
     const items = rows.map(d => ({ d, g: gradeNum(d), m: parse(d.my) })).filter(x => x.m);
     items.forEach(x => { x.dist = gradeDist(x.d, x.g, x.m); });
@@ -839,6 +865,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       ? `<small>내 평균 등급 · 학점 가중</small><b><i class="cnt" data-count="${wavg}" data-dec="2" data-key="avg-${esc(current)}">${wavg}</i><span>${graded.length}과목 · ${totalCr}학점 · 단순 평균 ${avg}</span></b>`
       : `<small>내 평균 등급 · 단순 평균</small><b><i class="cnt"${avg === "—" ? "" : ` data-count="${avg}" data-dec="2" data-key="avg-${esc(current)}"`}>${avg}</i><span>${graded.length}과목</span></b>`}</div><div class="sum-count">${chips}</div></div>
       ${arTxt ? `<p class="sum-rng">확률까지 반영하면 평균 등급은 <b>${arTxt}</b> 사이일 확률이 90%예요 <small>(위 숫자는 과목마다 가장 유력한 등급으로 낸 평균)</small></p>` : ""}
+      ${nearCalls(items)}
       <div class="sum-grid">${tiles}</div>
       ${PAIR[UPCOMING[0]] === current && !exams().includes(UPCOMING[0]) ? `<button class="sum-go" type="button" data-goexam="soon">🎯 이 점수로 학기말 등급 예상해 보기 →</button>` : ""}`;
   }
