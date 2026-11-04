@@ -288,6 +288,16 @@ h1 span{color:var(--omr)}
 .plan-h{margin:0;font-size:.88rem}
 .plan-h b{font-family:var(--mono);color:var(--omr)}
 .plan-h.ok{font-weight:700}.plan-h.warn{color:var(--bad);font-weight:700}
+.plan-pg{display:flex;flex-direction:column;gap:6px}
+.plan-pg>p{margin:0;font-size:.82rem;font-weight:700}
+.plan-pg>p small{font-weight:500;color:var(--muted)}
+.pgr{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.84rem}
+.pgr>div{display:flex;gap:4px}
+.pgb{font:inherit;font-size:.74rem;font-weight:700;padding:4px 9px;border-radius:999px;border:1px solid var(--rule);background:var(--surface);color:var(--ink);cursor:pointer}
+.pgb[aria-pressed="true"]{background:var(--omr);border-color:var(--omr);color:var(--on-fill)}
+.pgb:focus-visible{outline:2px solid var(--me);outline-offset:2px}
+.plan-tbl .pgoal{grid-column:2}
+.plan-tbl .pgoal em.ok{color:var(--ok)}.plan-tbl .pgoal em.warn{color:var(--bad)}
 .plan-tbl{display:flex;flex-direction:column;gap:6px}
 .plan-tbl .pr{display:grid;grid-template-columns:7em 1fr;gap:2px 10px;padding:8px 10px;border-radius:10px;border:1px solid var(--rule);font-size:.8rem}
 .plan-tbl .pr>b{grid-row:1/3;align-self:center}
@@ -1308,7 +1318,9 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
     const pts = ranks.map(r => { const g = semGpRank(d, null, r, ps); return { r, q: g.q, gp: g.gp, e: g.gp.reduce((a, p, k) => a + p * (k + 1), 0) }; });
     return planCache[key] = { id: d.id, name: d.alias || d.subject, N, step, r0, w: parseFloat(d.cr) || 1, mid: s0.m.raw, pts };
   }
-  function planMake(curves, target) {
+  // want[i] = 과목 i의 목표 학기말 등급(1~4, 0이면 정하지 않음). 정한 과목은 '그 등급 이내' 확률이 PLAN_P 이상이 되는 가장 느슨한 기말 등수로 두고,
+  // target(목표 평균 등급, 없으면 null)이 있으면 나머지 과목(과 필요하면 정한 과목도 더)을 효율 순서로 올려 평균 목표를 맞춤
+  function planMake(curves, target, want) {
     const W = curves.reduce((a, c) => a + c.w, 0), K = 2000, r = rng(4242);
     const U = curves.map(() => Float64Array.from({ length: K }, r));        // 공통 난수 (조합끼리 비교할 때 잡음이 안 끼게)
     const probLE = idx => { let ok = 0;
@@ -1317,46 +1329,57 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         if (sum / W <= target + 1e-9) ok++; }
       return ok / K; };
     const avgE = idx => curves.reduce((a, c, i) => a + c.pts[idx[i]].e * c.w, 0) / W;
-    const idx = curves.map(() => 0), base = { p: probLE(idx), e: avgE(idx) };
-    // 한 칸(반 인원의 5%) 올릴 때마다 평균 등급이 좋아지는 정도: 6칸 안에서의 평균 기울기 중 가장 큰 값 (등급 경계를 넘어야 이득이 나는 과목도 제대로 비교)
+    const cumTo = (pt, g) => pt.gp.slice(0, g).reduce((a, b) => a + b, 0);
+    const need = curves.map((c, i) => { const g = want[i]; if (!g) return { idx: 0, ok: true };
+      const k = c.pts.findIndex(pt => cumTo(pt, g) >= PLAN_P); return k >= 0 ? { idx: k, ok: true } : { idx: c.pts.length - 1, ok: false }; });
+    const minIdx = need.map(n => n.idx), idx = minIdx.slice(), zero = curves.map(() => 0);
+    const base = { p: target ? probLE(zero) : null, e: avgE(zero) };
     const first = curves.map(c => { let g = 0; for (let l = 1; l <= 6 && l < c.pts.length; l++) g = Math.max(g, (c.pts[0].e - c.pts[l].e) * c.w / W / l); return g; });
-    let p = base.p;
-    for (let it = 0; it < 300 && p < PLAN_P; it++) {
-      let best = null;
-      curves.forEach((c, i) => { for (let l = 1; l <= 6 && idx[i] + l < c.pts.length; l++) {      // 몇 칸 앞까지 보고 평균 기울기가 가장 큰 쪽 (평평한 구간에서 멈추지 않게)
-        const gain = (c.pts[idx[i]].e - c.pts[idx[i] + l].e) * c.w / W / l; if (!best || gain > best.gain) best = { i, l, gain }; } });
-      if (!best || best.gain <= 1e-9) break;
-      idx[best.i] += best.l; p = probLE(idx);
+    let p = target ? probLE(idx) : null;
+    if (target) {
+      for (let it = 0; it < 300 && p < PLAN_P; it++) {
+        let best = null;
+        curves.forEach((c, i) => { for (let l = 1; l <= 6 && idx[i] + l < c.pts.length; l++) {      // 몇 칸 앞까지 보고 평균 기울기가 가장 큰 쪽 (평평한 구간에서 멈추지 않게)
+          const gain = (c.pts[idx[i]].e - c.pts[idx[i] + l].e) * c.w / W / l; if (!best || gain > best.gain) best = { i, l, gain }; } });
+        if (!best || best.gain <= 1e-9) break;
+        idx[best.i] += best.l; p = probLE(idx);
+      }
+      if (p >= PLAN_P) for (let i = 0; i < curves.length; i++) while (idx[i] > minIdx[i]) { idx[i]--; const q = probLE(idx); if (q >= PLAN_P) p = q; else { idx[i]++; break; } }   // 필요 없이 올린 칸은 되돌림
     }
-    if (p >= PLAN_P) for (let i = 0; i < curves.length; i++) while (idx[i] > 0) { idx[i]--; const q = probLE(idx); if (q >= PLAN_P) p = q; else { idx[i]++; break; } }   // 필요 없이 올린 칸은 되돌림
-    return { target, base, idx, p, e: avgE(idx), reached: p >= PLAN_P, first, curves };
+    return { target, base, idx, p, e: avgE(idx), reached: target ? p >= PLAN_P : true, first, curves, want, need };
   }
-  const planKey = rows => rows.map(d => [d.id, rawOf(d.id), rawOf(perfKey(d)), rawOf("pen-" + d.id), rawOf("penn-" + d.id)].join(":")).join("|") + "|" + rawOf("plan-t");
+  const planKey = rows => rows.map(d => [d.id, rawOf(d.id), rawOf(perfKey(d)), rawOf("pen-" + d.id), rawOf("penn-" + d.id), rawOf("plang-" + d.id)].join(":")).join("|") + "|" + rawOf("plan-t");
+  const wantOf = d => { const g = parseInt(rawOf("plang-" + d.id)); return g >= 1 && g <= 4 ? g : 0; };
   function runPlan() {
-    const tgt = parseFloat(okVal(rawOf("plan-t"), 1, 5));
-    if (!tgt) { $("status").textContent = "목표 평균 등급을 1~5 사이로 넣어 주세요."; return; }
+    const tgt = parseFloat(okVal(rawOf("plan-t"), 1, 5)) || null;
+    const rows0 = (lastSemRows || []).filter(d => parse(d.my));
+    if (!tgt && !rows0.some(wantOf)) { $("status").textContent = "목표 평균 등급이나 과목별 목표 등급을 하나 이상 정해 주세요."; return; }
     $("status").textContent = "작전표를 계산하는 중이에요…";
     setTimeout(() => {
-      const rows = (lastSemRows || []).filter(d => parse(d.my));
-      const curves = rows.map(planCurve).filter(Boolean);
-      if (curves.length < 2) { $("status").textContent = "중간 점수를 2과목 이상 넣어 주세요."; return; }
-      planRes = { ...planMake(curves, tgt), key: planKey(lastSemRows || []) };
+      const rows = rows0.filter(d => planCurve(d));
+      if (rows.length < 2) { $("status").textContent = "중간 점수를 2과목 이상 넣어 주세요."; return; }
+      planRes = { ...planMake(rows.map(planCurve), tgt, rows.map(wantOf)), key: planKey(lastSemRows || []) };
       render(); $("status").textContent = "작전표를 만들었어요.";
       document.querySelector(".plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 40);
   }
   function planHtml(rows) {
     const pct = x => Math.round(x * 100) + "%", res = planRes && planRes.key === planKey(rows) ? planRes : null;
-    let out = `<div class="plan"><h3>🧭 작전표 <small>목표 평균 등급을 정하면, 기말에서 어느 과목을 얼마나 올려야 하는지 짜 줘요</small></h3>
-      <div class="plan-in"><label>목표 평균 등급 (예: 2.0)${numIn(`data-score="plan-t" inputmode="decimal" placeholder="2.0"`, rawOf("plan-t"), 1, 5, "")}</label><button class="btn" type="button" id="planGo">작전표 짜기</button></div>`;
+    const mine = rows.filter(d => parse(d.my));
+    let out = `<div class="plan"><h3>🧭 작전표 <small>목표 평균 등급이나 과목별 목표 등급을 정하면, 기말에서 어느 과목을 얼마나 올려야 하는지 짜 줘요</small></h3>
+      <div class="plan-in"><label>목표 평균 등급 (예: 2.0)${numIn(`data-score="plan-t" inputmode="decimal" placeholder="2.0"`, rawOf("plan-t"), 1, 5, "")}</label><button class="btn" type="button" id="planGo">작전표 짜기</button></div>
+      ${mine.length ? `<div class="plan-pg"><p>과목별 목표 학기말 등급 <small>(정한 과목은 그 등급 이내가 될 확률이 ${Math.round(PLAN_P * 100)}%를 넘게, 안 정하면 자동)</small></p>${mine.map(d => { const w = wantOf(d);
+        return `<div class="pgr"><span>${esc(d.alias || d.subject)}</span><div role="group" aria-label="${esc(d.subject)} 목표 학기말 등급">${[1, 2, 3, 4].map(g => `<button type="button" class="pgb" data-pg="${esc(d.id)}" data-g="${g}" aria-pressed="${w === g}">${g}등급</button>`).join("")}</div></div>`; }).join("")}</div>` : ""}`;
     if (!res) return out + (planRes ? `<p class="plan-f">점수나 목표가 바뀌었어요. 다시 짜 주세요.</p>` : `<p class="plan-f">중간 점수를 넣은 과목들로 짜요(2과목 이상). 학점이 큰 과목일수록 평균에 영향이 커요.</p>`) + `</div>`;
-    const { curves, idx, base } = res, order = curves.map((c, i) => i).sort((a, b) => idx[b] - idx[a]);
-    out += `<p class="plan-h">목표 평균 <b>${res.target.toFixed(2)}</b> 이하 · 기말도 중간 등수 그대로면 <b>${pct(base.p)}</b> <small>(기대 평균 ${base.e.toFixed(2)})</small></p>
-      <p class="plan-h ${res.reached ? "ok" : "warn"}">${base.p >= PLAN_P ? "지금처럼만 해도 목표 달성이 유력해요" : res.reached ? "이 작전이면 목표 달성 확률" : "모든 과목을 1등까지 올려도 목표 달성 확률"} <b>${pct(res.p)}</b> <small>(기대 평균 ${res.e.toFixed(2)})</small></p>
-      <div class="plan-tbl">${order.map(i => { const c = curves[i], pt = c.pts[idx[i]], top = c.pts[idx[i]].gp.reduce((bi, v, k, a) => v > a[bi] ? k : bi, 0), up = c.r0 - pt.r;
-        return `<div class="pr${up > 0 ? " up" : ""}"><b>${esc(c.name)}</b><span>${up > 0 ? `기말 <i>${pt.r}등</i>/${c.N}명 <em>▲${up}등</em>` : `지금 등수 유지 <small>(기말도 약 ${c.r0}등)</small>`}</span><span>점수로 약 ${Math.round(pt.q)}점 · 학기말 ${top + 1}등급 <small>${pct(pt.gp[top])}</small></span></div>`; }).join("")}</div>
+    const { curves, idx, base, want, need } = res, order = curves.map((c, i) => i).sort((a, b) => (want[b] ? 1 : 0) - (want[a] ? 1 : 0) || idx[b] - idx[a]);
+    out += res.target ? `<p class="plan-h">목표 평균 <b>${res.target.toFixed(2)}</b> 이하 · 기말도 중간 등수 그대로면 <b>${pct(base.p)}</b> <small>(기대 평균 ${base.e.toFixed(2)})</small></p>
+      <p class="plan-h ${res.reached ? "ok" : "warn"}">${base.p >= PLAN_P && idx.every((v, i) => !v || want[i]) ? "지금처럼만 해도 목표 달성이 유력해요" : res.reached ? "이 작전이면 목표 달성 확률" : "최대한 올려도 목표 달성 확률"} <b>${pct(res.p)}</b> <small>(기대 평균 ${res.e.toFixed(2)})</small></p>`
+      : `<p class="plan-h">기말도 중간 등수 그대로면 기대 평균 <b>${base.e.toFixed(2)}</b> · 이 작전이면 기대 평균 <b>${res.e.toFixed(2)}</b></p>`;
+    out += `<div class="plan-tbl">${order.map(i => { const c = curves[i], pt = c.pts[idx[i]], top = pt.gp.reduce((bi, v, k, a) => v > a[bi] ? k : bi, 0), up = c.r0 - pt.r, g = want[i];
+      const goal = g ? `<em class="${need[i].ok ? "ok" : "warn"}">${g}등급 목표 · ${need[i].ok ? "" : "1등까지 올려도 "}${g}등급 이내 확률 ${pct(pt.gp.slice(0, g).reduce((a, b) => a + b, 0))}</em>` : "";
+      return `<div class="pr${up > 0 ? " up" : ""}"><b>${esc(c.name)}</b><span>${up > 0 ? `기말 <i>${pt.r}등</i>/${c.N}명 <em>▲${up}등</em>` : `지금 등수 유지 <small>(기말도 약 ${c.r0}등)</small>`}</span><span>점수로 약 ${Math.round(pt.q)}점 · 학기말 ${top + 1}등급 <small>${pct(pt.gp[top])}</small></span>${goal ? `<span class="pgoal">${goal}</span>` : ""}</div>`; }).join("")}</div>
       <div class="plan-eff"><b>효율 순서</b> <small>같은 노력(반 인원의 5%만큼 앞당기기) 한 칸마다 평균 등급이 좋아지는 정도</small>${curves.map((c, i) => i).sort((a, b) => res.first[b] - res.first[a]).map((i, n) => `<div><span>${n + 1}. ${esc(curves[i].name)}${curves[i].w > 1 ? ` <small>${curves[i].w}학점</small>` : ""}</span><i style="width:${Math.max(2, res.first[i] / Math.max(...res.first, 1e-9) * 100)}%"></i><em>−${res.first[i].toFixed(3)}</em></div>`).join("")}</div>
-      <p class="plan-f">목표 달성 확률이 70% 넘는 가장 적은 노력의 조합이에요. 가정: 반 인원의 같은 비율(5%)을 앞당기는 노력은 과목마다 같다고 봤고, 과목 사이 등급은 서로 따로라고 봤어요. 점수는 기말 점수가 중간과 비슷한 모양일 때의 대략이에요.</p></div>`;
+      <p class="plan-f">목표 달성 확률이 ${Math.round(PLAN_P * 100)}% 넘는 가장 적은 노력의 조합이에요. 가정: 반 인원의 같은 비율(5%)을 앞당기는 노력은 과목마다 같다고 봤고, 과목 사이 등급은 서로 따로라고 봤어요. 점수는 기말 점수가 중간과 비슷한 모양일 때의 대략이에요.</p></div>`;
     return out;
   }
   function probRankHtml(mid, fin, rr, guessed, pstr) {
@@ -1706,6 +1729,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         document.querySelector(`[data-mid="${CSS.escape(mid.id)}"]`)?.closest(".sem")?.scrollIntoView({ behavior: "smooth", block: "center" }); }
     }
     else if (t.id === "planGo") { runPlan(); }
+    else if (t.dataset.pg) { const k = "plang-" + t.dataset.pg, cur = rawOf(k); saveScore(k, cur === t.dataset.g ? "" : t.dataset.g); $("status").textContent = "목표 등급을 저장했어요. '작전표 짜기'를 눌러 주세요."; render(); }
     else if (t.dataset.semmode) { semMode = t.dataset.semmode; try { localStorage.setItem("gradecut-sem-mode", semMode); } catch {} render(); }
     else if (t.dataset.est) { const id = t.dataset.est; showEst = showEst.includes(id) ? showEst.filter(x => x !== id) : [...showEst, id]; saveEst(); render(); }
     else if (t.id === "clear") { $("clearAsk").hidden = false; $("move").hidden = true; $("moveBtn").setAttribute("aria-expanded", "false"); }

@@ -132,6 +132,22 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3g. 작전표: 과목별 목표 학기말 등급 (평균 목표 없이도)
+  {
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel([]), 'gradecut-my-scores': scores({ '2026-2mid-calc': '79.1', '2026-2mid-english': '76.5', '2026-2mid-hwaeon': '62' }) } });
+    await p.click('.chip.soon'); await p.waitForSelector('.plan'); await p.waitForTimeout(500);
+    await p.click('#planGo'); await p.waitForTimeout(300);
+    check('작전표: 아무 목표도 없으면 안내', /하나 이상 정해 주세요/.test(await p.$eval('#status', e => e.innerText)) && (await p.$$('.plan-tbl')).length === 0);
+    await p.click('[data-pg="2026-2mid-hwaeon"][data-g="1"]'); await p.waitForTimeout(150);
+    check('작전표: 과목별 목표 등급 버튼 선택 표시', await p.$eval('[data-pg="2026-2mid-hwaeon"][data-g="1"]', e => e.getAttribute('aria-pressed') === 'true'));
+    await p.click('#planGo'); await p.waitForSelector('.plan-tbl', { timeout: 60000 });
+    const txt = await p.$eval('.plan', e => e.innerText.replace(/\s+/g, ' '));
+    check('작전표: 화법과 언어 1등급 목표 → 기말 목표 등수와 달성 확률', /1등급 목표 · 1등급 이내 확률 \d+%/.test(txt) && (await p.$$('.plan-tbl .pgoal')).length === 1, txt.slice(txt.indexOf('기대 평균'), txt.indexOf('기대 평균') + 120));
+    await p.click('[data-pg="2026-2mid-hwaeon"][data-g="1"]'); await p.waitForTimeout(150);
+    check('작전표: 같은 버튼을 다시 누르면 목표 해제(결과는 다시 짜라고 안내)', await p.$eval('[data-pg="2026-2mid-hwaeon"][data-g="1"]', e => e.getAttribute('aria-pressed') === 'false') && /다시 짜 주세요/.test(await p.$eval('.plan', e => e.innerText)));
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });
