@@ -169,6 +169,23 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3i. 누적 내신 계산기: 목표 누적 평균 → 이번 학기에 필요한 평균 등급
+  {
+    const E = '2026-2mid-english';
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel([]), 'gradecut-my-scores': scores({ [E]: '83.9' }) } });
+    await p.click('.chip.soon'); await p.waitForSelector('.cum'); await p.waitForTimeout(400);
+    check('누적 내신: 처음엔 접혀 있음', await p.$eval('.cum', e => !e.open));
+    await p.click('.cum > summary'); await p.waitForTimeout(200);
+    for (const [k, v] of [['cum-c', '34'], ['cum-a', '2.1'], ['cum-t', '2.0']]) { await p.fill(`[data-score="${k}"]`, v); await p.press(`[data-score="${k}"]`, 'Enter'); await p.waitForTimeout(250); }
+    const txt = await p.$eval('.cum .cum-r', e => e.innerText.replace(/\s+/g, ' '));
+    const m = txt.match(/이번 학기\((\d+)학점\) 평균 등급이 (\d\.\d\d) 이하/);
+    check('누적 내신: 필요한 평균 등급 계산', !!m && Math.abs(+m[2] - Math.floor(((2.0 * (34 + +m[1]) - 2.1 * 34) / +m[1]) * 100) / 100) < 0.011, txt);
+    check('누적 내신: 펼침 유지', await p.$eval('.cum', e => e.open));
+    await p.click('[data-cumset]'); await p.waitForTimeout(300);
+    check('누적 내신: 버튼으로 작전표 목표 입력', await p.$eval('[data-score="plan-t"]', e => e.value) === (m ? m[2] : '?'));
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });

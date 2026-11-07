@@ -282,6 +282,11 @@ h1 span{color:var(--omr)}
 .plan{padding:16px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:10px}
 .plan h3{margin:0;font-size:1.05rem}
 .plan h3 small{display:block;font-weight:500;color:var(--muted);font-size:.78rem;margin-top:2px;word-break:keep-all}
+.cum{padding:0 16px 16px;border-bottom:1px solid var(--rule)}
+.cum summary{cursor:pointer;font-weight:700;font-size:.92rem;padding:12px 0}
+.cum-in{display:flex;gap:10px;flex-wrap:wrap}.cum-in label{flex:1 1 7.5em;font-size:.78rem}
+.cum-r{margin:10px 0 0;font-size:.88rem;word-break:keep-all}.cum-r b{font-family:var(--mono);color:var(--omr)}
+.cum-r.warn{color:var(--bad);font-weight:700}.cum-f{margin:8px 0 0;font-size:.76rem;color:var(--muted);word-break:keep-all}
 .plan-in{display:flex;align-items:flex-end;gap:10px}
 .plan-in label{flex:0 1 11em}
 .plan-f{margin:0;font-size:.76rem;color:var(--muted);word-break:keep-all}
@@ -1396,6 +1401,23 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       <p class="plan-f">목표 달성 확률이 ${Math.round(PLAN_P * 100)}% 넘는 가장 적은 노력의 조합이에요. 가정: 반 인원의 같은 비율(5%)을 앞당기는 노력은 과목마다 같다고 봤고, 과목 사이 등급은 서로 따로라고 봤어요. 점수는 기말 점수가 중간과 비슷한 모양일 때의 대략이에요.</p></div>`;
     return out;
   }
+  function cumHtml(rows) {
+    const num0 = (k, lo, hi) => parseFloat(okVal(rawOf(k), lo, hi)) || 0, C = num0("cum-c", 1, 300), A = num0("cum-a", 1, 5), T = num0("cum-t", 1, 5);
+    const c = rows.reduce((a, d) => a + (+d.cr || 0), 0), nocr = rows.filter(d => !(+d.cr)).length;
+    let out = "";
+    if (C && A && T && c) {
+      const x = (T * (C + c) - A * C) / c, tot = C + c;
+      if (x >= 5) out = `<p class="cum-r"><b>이번 학기가 전부 5등급이어도</b> 누적 ${T.toFixed(2)} 이하가 돼요. 이미 여유 있어요.</p>`;
+      else if (x < 1) out = `<p class="cum-r warn">이번 학기를 전부 1등급 받아도 누적 ${T.toFixed(2)}에는 닿지 않아요 <small>(최선이면 누적 ${((A * C + c) / tot).toFixed(2)})</small></p>`;
+      else out = `<p class="cum-r">누적 <b>${T.toFixed(2)}</b> 이하가 되려면 이번 학기(${c}학점) 평균 등급이 <b>${(Math.floor(x * 100) / 100).toFixed(2)}</b> 이하여야 해요.</p>
+        <button class="pgb" type="button" data-cumset="${(Math.floor(x * 100) / 100).toFixed(2)}">이 평균을 작전표 목표로 넣기</button>`;
+      const e = planRes && planRes.key === planKey(rows) ? planRes.e : null;
+      if (e) out += `<p class="cum-r">작전표대로 되면 이번 학기 기대 ${e.toFixed(2)} → 누적 약 <b>${((A * C + e * c) / tot).toFixed(2)}</b></p>`;
+    } else out = `<p class="cum-f">이전 학기까지의 이수 학점, 누적 평균 등급, 목표 누적 평균을 넣으면 이번 학기에 필요한 평균 등급을 계산해요.</p>`;
+    return `<details class="cum" data-more="cum"${openIds.includes("cum") ? " open" : ""}><summary>📚 누적 내신 계산기</summary>
+      <div class="cum-in"><label>지난 학기까지 이수 학점${numIn(`data-score="cum-c" inputmode="numeric" placeholder="예: 34"`, rawOf("cum-c"), 1, 300, "학점")}</label><label>누적 평균 등급${numIn(`data-score="cum-a" inputmode="decimal" placeholder="예: 2.1"`, rawOf("cum-a"), 1, 5, "")}</label><label>목표 누적 평균${numIn(`data-score="cum-t" inputmode="decimal" placeholder="예: 2.0"`, rawOf("cum-t"), 1, 5, "")}</label></div>
+      ${out}<p class="cum-f">이번 학기 학점은 위 과목들의 학점 합(${c}학점)을 써요${nocr ? ` (학점 정보가 없는 ${nocr}과목은 빠져 있어요)` : ""}. 입력값은 이 기기의 브라우저에만 저장돼요.</p></details>`;
+  }
   function probRankHtml(mid, fin, rr, guessed, pstr) {
     const r = semGpRank(mid, fin, rr, pstr); if (!r) return "";
     const pct = rr / r.N * 100;
@@ -1645,7 +1667,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           <p class="sem-f">${semMode === "rank" ? "등수로 정하면 기말이 쉽든 어렵든 같은 자리라서 확률이 더 정확해요." : "점수로 정하면 기말이 쉬운지 어려운지에 따라 같은 점수도 자리가 달라져서, 그만큼 확률이 덜 확실해요."}</p>
           <button class="tbtn" type="button" id="saveSem"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>기말 예상 이미지로 저장</button>
           <p>기말 난이도, 점수가 퍼진 정도, 중간을 잘 본 사람이 기말도 잘 보는 정도처럼 아직 모르는 건 여러 경우를 확률에 다 섞어 넣었어요. 학기말 = 중간 25% + 기말 25% + 수행 50%.</p><p class="sem-f">${semNote(null)}</p></div></div>`
-        + planHtml(rows) + rows.map((d, ri) => {
+        + planHtml(rows) + cumHtml(rows) + rows.map((d, ri) => {
           const midIn = `<label>중간 점수${numIn(`data-score="${esc(d.id)}" inputmode="decimal" placeholder="입력"`, rawOf(d.id), 0, 100, "점", scoreIssue(d, rawOf(d.id)))}</label>`;
           const fk = semMode === "rank" ? semrKey(d) : semKey(d);
           const N = parseInt(d.n) || 999;
@@ -1770,6 +1792,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
         document.querySelector(`[data-mid="${CSS.escape(mid.id)}"]`)?.closest(".sem")?.scrollIntoView({ behavior: "smooth", block: "center" }); }
     }
     else if (t.id === "planGo") { runPlan(); }
+    else if (t.dataset.cumset) { saveScore("plan-t", t.dataset.cumset); $("status").textContent = "목표 평균을 작전표에 넣었어요. '작전표 짜기'를 눌러 주세요."; render(); }
     else if (t.dataset.pg) { const k = "plang-" + t.dataset.pg, cur = rawOf(k); saveScore(k, cur === t.dataset.g ? "" : t.dataset.g); $("status").textContent = "목표 등급을 저장했어요. '작전표 짜기'를 눌러 주세요."; render(); }
     else if (t.dataset.semmode) { semMode = t.dataset.semmode; try { localStorage.setItem("gradecut-sem-mode", semMode); } catch {} render(); }
     else if (t.dataset.est) { const id = t.dataset.est; showEst = showEst.includes(id) ? showEst.filter(x => x !== id) : [...showEst, id]; saveEst(); render(); }
