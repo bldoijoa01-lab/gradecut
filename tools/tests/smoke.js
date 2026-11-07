@@ -162,6 +162,8 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     check('지난 학기 기준선: 지난 학기 학기말 등급(23/226 → 1등급)', /23\/226등.*1등급이었어요/.test(txt), txt.slice(0, 80));
     check('지난 학기 기준선: 이번 중간이 지난 학기보다 조금 아래(상위 19% → 23%)', /상위 19% → 이번 상위 23%.*조금 아래/.test(txt), txt.slice(0, 160));
     check('지난 학기 기준선: 지난 기말 11/226 → 이번 학기 약 11등과 1등급 확률', /11\/226.*약 11등.*1등급 \d+%/.test(txt), txt);
+    check('지난 학기 기준선: 비교 그림(지난 3점 + 이번 중간·기준선)', await p.$$eval(`.base[data-more="base-${E}"] .btk .btrack`, a => a.length === 2 && a[0].querySelectorAll('.bm').length === 3 && a[1].querySelectorAll('.bm').length >= 2));
+    check('지난 학기 기준선: 지난 기말과 이번 기준선 점이 같은 자리', await p.$$eval(`.base[data-more="base-${E}"] .bm`, a => { const l = a.filter(e => e.textContent === '기').map(e => e.style.left); return l.length >= 2 && l[0] === l[1]; }));
     check('지난 학기 기준선: 펼침 유지(다시 그려도)', await p.$eval(`.base[data-more="base-${E}"]`, e => e.open));
     check('지난 학기 기준선: 예측 확률은 안 바뀜', before === await prob(), `${before} → ${await prob()}`);
     await p.click(`.base[data-more="base-${E}"] .blset`); await p.waitForTimeout(500);
