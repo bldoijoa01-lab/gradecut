@@ -148,6 +148,27 @@ const scrollW = p => p.evaluate(() => document.documentElement.scrollWidth);
     await p.context().close();
   }
 
+  // 3h. 지난 학기 기준선: 지난 학기 등수를 이번 학기 숫자로 옮겨 비교 (예측 확률은 그대로)
+  {
+    const E = '2026-2mid-english';
+    const p = await open(b, { reduce: 'reduce', store: { 'gradecut-my-electives': sel([]), 'gradecut-my-scores': scores({ [E]: '83.9' }) } });
+    await p.click('.chip.soon'); await p.waitForSelector('.base'); await p.waitForTimeout(400);
+    const prob = () => p.evaluate(id => { const r = document.getElementById('my-' + id)?.closest('.row') || [...document.querySelectorAll('.row')].find(e => e.innerText.includes('영어')); return r.querySelector('.sp-big b')?.innerText; }, E);
+    const before = await prob();
+    check('지난 학기 기준선: 처음엔 접혀 있음', await p.$eval(`.base[data-more="base-${E}"]`, e => !e.open));
+    await p.click(`.base[data-more="base-${E}"] > summary`); await p.waitForTimeout(200);
+    for (const [k, v] of [['bn', '226'], ['bm', '43'], ['bf', '11'], ['bs', '23']]) { await p.fill(`[data-score="${k}-${E}"]`, v); await p.press(`[data-score="${k}-${E}"]`, 'Enter'); await p.waitForTimeout(250); }
+    const txt = await p.$eval(`.base[data-more="base-${E}"] .base-r`, e => e.innerText.replace(/\s+/g, ' '));
+    check('지난 학기 기준선: 지난 학기 학기말 등급(23/226 → 1등급)', /23\/226등.*1등급이었어요/.test(txt), txt.slice(0, 80));
+    check('지난 학기 기준선: 이번 중간이 지난 학기보다 조금 아래(상위 19% → 23%)', /상위 19% → 이번 상위 23%.*조금 아래/.test(txt), txt.slice(0, 160));
+    check('지난 학기 기준선: 지난 기말 11/226 → 이번 학기 약 11등과 1등급 확률', /11\/226.*약 11등.*1등급 \d+%/.test(txt), txt);
+    check('지난 학기 기준선: 펼침 유지(다시 그려도)', await p.$eval(`.base[data-more="base-${E}"]`, e => e.open));
+    check('지난 학기 기준선: 예측 확률은 안 바뀜', before === await prob(), `${before} → ${await prob()}`);
+    await p.click(`.base[data-more="base-${E}"] .blset`); await p.waitForTimeout(500);
+    check('지난 학기 기준선: 버튼으로 기말 목표 등수에 11 입력', await p.$eval(`[data-score="semr-${E}"]`, e => e.value) === '11');
+    await p.context().close();
+  }
+
   // 4. 값이 바뀌면 이어서 움직임 (확률 막대 칸 합 100%, 중간값 존재)
   {
     const p = await open(b, { width: 390, store: { 'gradecut-my-electives': '[]', 'gradecut-my-scores': scores({ '2026-2mid-hwaeon': '73.1' }) } });

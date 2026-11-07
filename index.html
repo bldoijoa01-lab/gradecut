@@ -310,6 +310,20 @@ h1 span{color:var(--omr)}
 .plan-eff>div{display:grid;grid-template-columns:9em 1fr 3.6em;align-items:center;gap:8px}
 .plan-eff>div i{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--omr),var(--violet))}
 .plan-eff>div em{font-style:normal;font-family:var(--mono);font-size:.72rem;color:var(--muted);text-align:right}
+.base{grid-column:1/-1;border:1px solid var(--rule);border-radius:12px;padding:8px 12px;background:var(--surface)}
+.base>summary{cursor:pointer;list-style:none;font-size:.86rem;font-weight:700;color:var(--me)}
+.base>summary::-webkit-details-marker{display:none}
+.base>summary small{font-weight:500;color:var(--muted);font-size:.72rem;margin-left:4px}
+.base>summary:focus-visible{outline:2px solid var(--me);outline-offset:2px;border-radius:4px}
+.base-h{margin:8px 0 6px;font-size:.78rem;color:var(--muted);word-break:keep-all}
+.base-in{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.base-in label{font-size:.74rem;color:var(--muted)}
+.base-in .myin{max-width:none;width:100%}
+.base-r{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.base-r p{margin:0;font-size:.82rem;word-break:keep-all}
+.base-r small{color:var(--muted)}
+.blset{display:block;margin-top:6px;font:inherit;font-size:.78rem;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid color-mix(in srgb,var(--omr) 35%,transparent);background:var(--omr-soft);color:var(--omr);cursor:pointer}
+.blset em{display:none}
 .penbox{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:10px;background:var(--omr-soft);border:1px solid color-mix(in srgb,var(--omr) 25%,transparent)}
 .penbox p{margin:0;font-size:.8rem;word-break:keep-all}
 .penbox small{color:var(--muted);font-size:.74rem;word-break:keep-all}
@@ -1444,6 +1458,33 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
       <div class="semin"><label>그 학생들 수행 감점 (점)${numIn(`data-score="pen-${id}" inputmode="decimal" placeholder="0"`, rawOf("pen-" + mid.id), 0, 50, "점")}</label><label>그 학생 수 (명)${numIn(`data-score="penn-${id}" inputmode="numeric" placeholder="${c.n}"`, rawOf("penn-" + mid.id), 0, N, "명")}</label></div>
       <small>수행 1점은 중간+기말 합계 4점과 같아요. 내 수행이 깎였다면 위 '수행' 칸에 내 수행 점수를 따로 넣어 주세요.</small></div>`;
   };
+  // 지난 학기 기준선(이 브라우저에만 저장): "이 정도 해서 그 등급이었다"를 이번 학기 숫자로 옮겨 비교용으로 보여 줌. 예측 확률은 바꾸지 않음.
+  // 지난 학기 등수를 수강자수로 나눈 비율(상위 몇 %)을 이번 학기 인원에 곱해 이번 학기 등수로 바꿈
+  const GQ = [0.10, 0.34, 0.66, 0.90];
+  function baseHtml(mid) {
+    const id = esc(mid.id), kn = "bn-" + mid.id, bn = parseInt(okVal(rawOf(kn), 1, 9999)) || 0, hi = bn || 9999;
+    const val = k => parseInt(okVal(rawOf(k + "-" + mid.id), 1, hi)) || 0, bm = val("bm"), bf = val("bf"), bs = val("bs");
+    const p1 = x => { const v = x * 100; return v < 10 ? v.toFixed(1) : String(Math.round(v)); };
+    const inp = (k, lab, ph, h) => `<label>${lab}${numIn(`data-score="${k}-${id}" inputmode="numeric" placeholder="${ph}"`, rawOf(k + "-" + mid.id), 1, h, "")}</label>`;
+    const lines = [];
+    if (bn && (bm || bf || bs)) {
+      const ps = rawOf(perfKey(mid)), s0 = semInfo(mid, null, "", ps);
+      if (bs) { const R = GQ.map(q => Math.floor(q * bn + 0.5)), gr = 1 + R.filter(r => bs > r).length; lines.push(`지난 학기 학기말은 <b>${bs}/${bn}등</b>(상위 ${p1(bs / bn)}%) → <b>${gr}등급</b>이었어요 <small>(1등급 경계 ${R[0]}등)</small>`); }
+      if (s0.M && s0.m) {
+        const M = s0.M, N = M.N;
+        if (bm) { const sr = parseFloat(mid.n) ? simAt(mid, s0.m.n) : null,   // 성적표로 아는 석차는 그대로, 아니면 계산한 석차
+            now = sr ? Math.max(1, sr.mid) / parseFloat(mid.n) : Math.max(1, Math.min(N, Math.round(M.above(s0.m.n)))) / N, was = bm / bn, d = now - was;
+          lines.push(`중간: 지난 학기 상위 ${p1(was)}% → 이번 상위 ${p1(now)}% <small>(${d > 0.03 ? "지난 학기보다 조금 아래" : d < -0.03 ? "지난 학기보다 조금 위" : "지난 학기와 비슷"})</small>`); }
+        if (bf) { const rr = Math.max(1, Math.min(N, Math.round(bf / bn * N))), g = semGpRank(mid, null, rr, ps), top = g.gp.reduce((bi, v, k, a) => v > a[bi] ? k : bi, 0);
+          lines.push(`기말: 지난 학기 상위 ${p1(bf / bn)}%(${bf}/${bn}) → 이번 학기로는 <b>약 ${rr}등 · 점수로 약 ${Math.round(g.q)}점</b>. 이 기준을 다시 하면 학기말 1등급 <b>${pctTxt(g.gp[0])}</b>${top > 0 ? ` <small>(가장 유력 ${top + 1}등급 ${pctTxt(g.gp[top])})</small>` : ""}
+            <button type="button" class="blset" data-goalmid="${id}" data-grank="${rr}" data-gscore="${Math.round(g.q)}"><em>지난 학기 기준선을</em>이 기준으로 기말 목표 정하기</button>`); }
+      } else lines.push(`<small>이번 학기 중간 점수를 넣으면 이번 학기 숫자로 옮겨 줘요.</small>`);
+    } else if (!bn && (bm || bf || bs)) lines.push(`<small>지난 학기 수강자수를 넣어야 이번 학기로 옮길 수 있어요.</small>`);
+    return `<details class="base" data-more="base-${id}"${openIds.includes("base-" + mid.id) ? " open" : ""}><summary>📌 지난 학기 기준선 <small>선택 · 이 브라우저에만 저장 · 예측 확률은 안 바꿔요</small></summary>
+      <p class="base-h">성적표의 지난 학기 <b>${esc(mid.alias || mid.subject)}</b> 등수를 넣으면, "그때 이 정도 해서 그 등급이었다"를 이번 학기 숫자로 옮겨 보여 줘요.</p>
+      <div class="base-in">${inp("bm", "중간 등수", "예: 43", hi)}${inp("bf", "기말 등수", "예: 11", hi)}${inp("bs", "학기말 등수", "예: 23", hi)}<label>수강자수${numIn(`data-score="bn-${id}" inputmode="numeric" placeholder="예: 226"`, rawOf(kn), 1, 9999, "")}</label></div>
+      ${lines.length ? `<div class="base-r">${lines.map(l => `<p>${l}</p>`).join("")}</div>` : ""}</details>`;
+  }
   const perfIn = mid => `<label>수행 (50점)${numIn(`data-score="${esc(perfKey(mid))}" inputmode="decimal" placeholder="50"`, rawOf(perfKey(mid)), 0, 50, "점")}</label>`;
   // 기말 과목 → 같은 과목 중간 (내 중간 점수 포함, 정보 적은 과목은 보기 설정 따름)
   function midOf(fin) {
@@ -1611,7 +1652,7 @@ try { const t = localStorage.getItem("gradecut-theme"); if (t === "light" || t =
           const finIn = semMode === "rank"
             ? `<label>기말 목표 등수${numIn(`data-score="${esc(fk)}" inputmode="numeric" placeholder="예: 20"`, rawOf(fk), 1, N, "등")}</label>`
             : `<label>기말 목표 점수${numIn(`data-score="${esc(fk)}" inputmode="decimal" placeholder="입력"`, rawOf(fk), 0, 100, "점")}</label>`;
-          return `<div class="row${d.id === freshId ? " fresh" : ""}" style="--i:${ri}"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${penIn(d)}${semHtml(d, null, okVal(rawOf(semKey(d)), 0, 100), false, rawOf(perfKey(d)), true, okVal(rawOf(semrKey(d)), 1, N))}</div>`;
+          return `<div class="row${d.id === freshId ? " fresh" : ""}" style="--i:${ri}"><div class="subj"><div class="sname"><span>${nameOf(d)}</span><small>${d.cr ? d.cr + "학점" : ""}</small></div></div><div class="semin">${midIn}${finIn}${perfIn(d)}</div>${penIn(d)}${baseHtml(d)}${semHtml(d, null, okVal(rawOf(semKey(d)), 0, 100), false, rawOf(perfKey(d)), true, okVal(rawOf(semrKey(d)), 1, N))}</div>`;
         }).join("");
       return;
     }
